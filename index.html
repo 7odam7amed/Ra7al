@@ -82,24 +82,6 @@
     <!-- التنبيهات المنبثقة السريعة (Toast Notifications) -->
     <div id="toast-container" class="fixed bottom-5 left-5 z-50 space-y-3 pointer-events-none"></div>
 
-    <!-- مبدل الصلاحيات لتجربة سريعة لك ومحمود -->
-    <div class="fixed bottom-5 right-5 z-50 glass-card shadow-2xl rounded-3xl p-4 flex flex-col gap-3 max-w-[280px]">
-        <p class="text-[10px] font-black text-center text-slate-400 dark:text-slate-500 tracking-wider">مبدّل الصلاحيات السريع للتجربة</p>
-        <div class="grid grid-cols-4 gap-1.5">
-            <button onclick="switchRole('guest')" id="btn-role-guest" class="px-2 py-1.5 text-[10px] rounded-lg font-black bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:scale-105 active:scale-95 fast-transition">زائر</button>
-            <button onclick="switchRole('student')" id="btn-role-student" class="px-2 py-1.5 text-[10px] rounded-lg font-black bg-[#0B5DAA] text-white hover:scale-105 active:scale-95 fast-transition">طالب</button>
-            <button onclick="switchRole('supervisor')" id="btn-role-supervisor" class="px-2 py-1.5 text-[10px] rounded-lg font-black bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:scale-105 active:scale-95 fast-transition">مشرف</button>
-            <button onclick="switchRole('ceo')" id="btn-role-ceo" class="px-2 py-1.5 text-[10px] rounded-lg font-black bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:scale-105 active:scale-95 fast-transition">CEO</button>
-        </div>
-        <div class="border-t border-slate-200 dark:border-slate-800 pt-2.5 flex items-center justify-between">
-            <span class="text-xs font-bold text-slate-500 dark:text-slate-400">الوضع الداكن المريح</span>
-            <button onclick="toggleDarkMode()" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-brand-primary dark:text-brand-secondary hover:scale-110 active:scale-95 fast-transition shadow-sm border-0 cursor-pointer">
-                <i class="fa-solid fa-moon dark:hidden"></i>
-                <i class="fa-solid fa-sun hidden dark:block"></i>
-            </button>
-        </div>
-    </div>
-
     <!-- الهيدر الرئيسي مع زجاج بلوري ذكي ولامع -->
     <header class="sticky top-0 z-40 bg-white/70 dark:bg-[#081B33]/70 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50 transition-all">
         <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
@@ -249,13 +231,6 @@
                     <h3 class="text-xl font-black leading-relaxed">بوابة تسجيل الدخول</h3>
                     <p class="text-xs text-slate-400">مرحباً بك مجدداً في نظام رحال للنقل الجامعي</p>
                 </div>
-                
-                <div class="bg-blue-50 dark:bg-slate-900/60 border border-[#0B5DAA]/20 p-3 rounded-xl space-y-1 text-xs">
-                    <p class="font-black text-[#0B5DAA] dark:text-[#6AB9FF]"><i class="fa-solid fa-circle-info"></i> للاختبار والتجربة السريعة:</p>
-                    <p>• ادخل هاتف يبدأ بـ <span class="font-bold font-mono text-brand-primary">010</span> لدخول لوحة **الطالب**</p>
-                    <p>• ادخل هاتف يبدأ بـ <span class="font-bold font-mono text-brand-primary">011</span> لدخول لوحة **المشرف**</p>
-                    <p>• ادخل هاتف يبدأ بـ <span class="font-bold font-mono text-brand-primary">012</span> لدخول لوحة **المدير الـ CEO**</p>
-                </div>
 
                 <form onsubmit="handleLoginSubmit(event)" class="space-y-4">
                     <div>
@@ -265,9 +240,6 @@
                     <div>
                         <label class="block text-xs font-bold text-slate-400 mb-1.5">كلمة المرور</label>
                         <input type="password" id="login-pass" required placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
-                    </div>
-                    <div class="text-left">
-                        <button type="button" onclick="showToast('يرجى مراجعة إدارة رحال لاستعادة كلمة المرور', 'info')" class="text-xs text-brand-primary dark:text-[#6AB9FF] hover:underline bg-transparent border-0 p-0 cursor-pointer">نسيت كلمة المرور؟</button>
                     </div>
                     <button type="submit" class="w-full btn-gradient py-3.5 text-xs font-black rounded-xl text-white hover:scale-[1.02] active:scale-95 fast-transition shadow-md border-0 cursor-pointer">دخول الحساب</button>
                 </form>
