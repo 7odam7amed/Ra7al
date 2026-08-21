@@ -1,0 +1,64 @@
+body {
+    font-family: 'Cairo', sans-serif;
+    line-height: 1.8;
+    transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+h1, h2, h3, h4, h5, h6 {
+    line-height: 1.4 !important;
+}
+.poppins {
+    font-family: 'Poppins', sans-serif;
+    letter-spacing: 0.05em;
+}
+/* كروت الزجاج المعدنية مع تأثير الإضاءة النيون الخفيفة */
+.glass-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(11, 93, 170, 0.15);
+    box-shadow: 0 10px 30px -10px rgba(11, 93, 170, 0.1);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dark .glass-card {
+    background: rgba(8, 27, 51, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(56, 189, 248, 0.12);
+    box-shadow: 0 10px 40px -15px rgba(8, 27, 51, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+/* نيون مضيء عند التمرير (Hover Glow) */
+.glass-card:hover {
+    border-color: rgba(56, 189, 248, 0.3);
+    box-shadow: 0 15px 40px -10px rgba(56, 189, 248, 0.15);
+}
+/* الأزرار المعدنية ثلاثية الأبعاد ذات التدرج اللوني لرحال */
+.btn-gradient {
+    background: linear-gradient(135deg, #0B5DAA 0%, #6AB9FF 100%);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-gradient:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px -10px rgba(56, 189, 248, 0.5);
+    opacity: 0.95;
+}
+.btn-gradient:active {
+    transform: translateY(1px);
+}
+/* حركات التموج العائمة للخلفية (Floating Blobs) */
+@keyframes pulse-glow {
+    0%, 100% { opacity: 0.15; transform: scale(1) translate(0, 0); }
+    50% { opacity: 0.25; transform: scale(1.15) translate(20px, -20px); }
+}
+.animate-pulse-glow {
+    animation: pulse-glow 8s ease-in-out infinite;
+}
+/* حركات ناعمة لفتح النوافذ */
+.view-transition {
+    animation: viewFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes viewFadeIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+th, td {
+    line-height: 1.8;
+    padding: 1.1rem 1.5rem !important;
+}
