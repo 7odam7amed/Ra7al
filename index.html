@@ -4,54 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>رحال | RAHAAL - المنصة الذكية للنقل الجامعي</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            primary: '#0B5DAA',
-                            secondary: '#6AB9FF',
-                            dark: '#081B33',
-                            bgLight: '#F8FAFC',
-                            success: '#2ECC71',
-                            glowBlue: '#38BDF8'
-                        }
-                    },
-                    fontFamily: {
-                        cairo: ['Cairo', 'sans-serif'],
-                        poppins: ['Poppins', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
+    <link rel="stylesheet" href="tailwind.css">
+
     <link rel="stylesheet" href="styles.css">
-    <script>
-        // صمام أمان رقمي فوري لضمان اختفاء شاشة التحميل في أجزاء من الثانية
-        setTimeout(function() {
-            var loader = document.getElementById('loading-screen');
-            if (loader && loader.style.display !== 'none') {
-                loader.style.opacity = '0';
-                setTimeout(function() { loader.style.display = 'none'; }, 150);
-            }
-        }, 1000);
-    </script>
+  
 </head>
 <body class="bg-brand-bgLight text-slate-800 dark:bg-[#030A16] dark:text-slate-100 min-h-screen flex flex-col justify-between relative overflow-x-hidden">
 
-    <!-- كرات النيون العائمة في الخلفية (تمنح طابع الويب الحديث المضيء) -->
-    <div class="absolute top-20 left-10 w-[450px] h-[450px] bg-brand-primary/10 dark:bg-brand-primary/15 rounded-full blur-3xl animate-pulse-glow pointer-events-none z-0"></div>
-    <div class="absolute bottom-40 right-10 w-[500px] h-[450px] bg-brand-secondary/10 dark:bg-brand-secondary/15 rounded-full blur-3xl animate-pulse-glow pointer-events-none z-0" style="animation-delay: 4s;"></div>
-
+   
     <!-- شاشة التحميل الفورية (شعار نيون SVG مدمج يتوافق تماماً مع شعار رحال الأصلي) -->
     <div id="loading-screen" class="fixed inset-0 z-50 bg-[#081B33] flex flex-col items-center justify-center transition-opacity duration-200">
         <div class="text-center space-y-4">
@@ -81,6 +46,24 @@
 
     <!-- التنبيهات المنبثقة السريعة (Toast Notifications) -->
     <div id="toast-container" class="fixed bottom-5 left-5 z-50 space-y-3 pointer-events-none"></div>
+
+    <!-- مبدل الصلاحيات لتجربة سريعة لك ومحمود -->
+    <div class="fixed bottom-5 right-5 z-50 glass-card shadow-2xl rounded-3xl p-4 flex flex-col gap-3 max-w-[280px]">
+        <p class="text-[10px] font-black text-center text-slate-400 dark:text-slate-500 tracking-wider">مبدّل الصلاحيات السريع للتجربة</p>
+        <div class="grid grid-cols-4 gap-1.5">
+            <button onclick="switchRole('guest')" id="btn-role-guest" class="px-2 py-1.5 text-[10px] rounded-lg font-black bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:scale-105 active:scale-95 fast-transition">زائر</button>
+            <button onclick="switchRole('student')" id="btn-role-student" class="px-2 py-1.5 text-[10px] rounded-lg font-black bg-[#0B5DAA] text-white hover:scale-105 active:scale-95 fast-transition">طالب</button>
+            <button onclick="switchRole('supervisor')" id="btn-role-supervisor" class="px-2 py-1.5 text-[10px] rounded-lg font-black bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:scale-105 active:scale-95 fast-transition">مشرف</button>
+            <button onclick="switchRole('ceo')" id="btn-role-ceo" class="px-2 py-1.5 text-[10px] rounded-lg font-black bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:scale-105 active:scale-95 fast-transition">CEO</button>
+        </div>
+        <div class="border-t border-slate-200 dark:border-slate-800 pt-2.5 flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-500 dark:text-slate-400">الوضع الداكن المريح</span>
+            <button onclick="toggleDarkMode()" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-brand-primary dark:text-brand-secondary hover:scale-110 active:scale-95 fast-transition shadow-sm border-0 cursor-pointer">
+                <i class="fa-solid fa-moon dark:hidden"></i>
+                <i class="fa-solid fa-sun hidden dark:block"></i>
+            </button>
+        </div>
+    </div>
 
     <!-- الهيدر الرئيسي مع زجاج بلوري ذكي ولامع -->
     <header class="sticky top-0 z-40 bg-white/70 dark:bg-[#081B33]/70 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50 transition-all">

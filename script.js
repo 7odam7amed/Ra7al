@@ -32,23 +32,23 @@ let supervisorStudents = [
 let activeUserRole = 'guest';
 
 // DOMContentLoaded load execution (سريع جداً لضمان عدم التعليق)
-document.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('load', () => {
     const loader = document.getElementById('loading-screen');
+
     if (loader) {
-        // الفيد أوت السريع لإلغاء التعليق تماماً
         loader.style.opacity = '0';
-        setTimeout(() => loader.style.display = 'none', 150);
+
+        setTimeout(() => {
+            loader.style.display = 'none';
+        }, 150);
     }
 
-    // Trigger statistics animate increments safely
     animateCounter();
-    
-    // Initial data rendering calls
     renderAllDataTables();
-    switchRole('guest'); // لتأكيد تزامن ومزامنة هيدر الملاحة تلقائياً
+    switchRole('guest');
 });
 
-// TOAST NOTIFICATION UTILITY
+// TOAST NOTIFICATION UTILITY الرسايل الي بتظهر من تحت
 function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -75,7 +75,7 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// STATS INCREMENT COUNTER
+//الانميشن بتاع الكونتر 
 function animateCounter() {
     const counters = document.querySelectorAll('[data-target]');
     counters.forEach(counter => {
@@ -95,7 +95,7 @@ function animateCounter() {
     });
 }
 
-// SYSTEM DATA RENDERING CONTROLLER
+// SYSTEM DATA RENDERING CONTROLLER بيرندر الداتا
 function renderAllDataTables() {
     renderStudentsTable();
     renderSupervisorsTable();
