@@ -8,19 +8,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <link rel="stylesheet" href="tailwind.css">
-
-    <link rel="stylesheet" href="styles.css">
-  
+    <!-- Tailwind CSS -->
+    <link rel="stylesheet" href="./CSS/tailwind.css">
+    <!-- bootstrap CSS -->
+    <link rel="stylesheet" href="./CSS/bootstrap.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="./CSS/styles.css">
+    <!-- QRCode JS Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body class="bg-brand-bgLight text-slate-800 dark:bg-[#030A16] dark:text-slate-100 min-h-screen flex flex-col justify-between relative overflow-x-hidden">
 
-   
-    <!-- شاشة التحميل الفورية (شعار نيون SVG مدمج يتوافق تماماً مع شعار رحال الأصلي) -->
+    <!-- شاشة التحميل الفورية -->
     <div id="loading-screen" class="fixed inset-0 z-50 bg-[#081B33] flex flex-col items-center justify-center transition-opacity duration-200">
         <div class="text-center space-y-4">
-            <div class="w-36 h-36 mx-auto flex items-center justify-center animate-pulse">
+            <div class="w-32 h-32 mx-auto flex items-center justify-center animate-pulse">
                 <svg class="w-full h-full text-[#6AB9FF]" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <defs>
                         <linearGradient id="metallicGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -37,7 +39,7 @@
                 </svg>
             </div>
             <h1 class="text-4xl font-black text-white tracking-widest poppins leading-none">RAHAAL</h1>
-            <p class="text-xs text-[#6AB9FF] font-semibold tracking-wider uppercase">رَحَّال للنقل الجامعي الآمن</p>
+            <p class="text-xs text-[#6AB9FF] font-semibold tracking-wider uppercase">رَحَّال للنقل الجامعي الذكي</p>
             <div class="w-20 h-1 bg-[#6AB9FF]/20 rounded-full mx-auto overflow-hidden">
                 <div class="h-full bg-[#6AB9FF] animate-pulse w-full"></div>
             </div>
@@ -47,67 +49,66 @@
     <!-- التنبيهات المنبثقة السريعة (Toast Notifications) -->
     <div id="toast-container" class="fixed bottom-5 left-5 z-50 space-y-3 pointer-events-none"></div>
 
-    <!-- مبدل الصلاحيات لتجربة سريعة لك ومحمود -->
-    <div class="fixed bottom-5 right-5 z-50 glass-card shadow-2xl rounded-3xl p-4 flex flex-col gap-3 max-w-[280px]">
-        <p class="text-[10px] font-black text-center text-slate-400 dark:text-slate-500 tracking-wider">مبدّل الصلاحيات السريع للتجربة</p>
-        <div class="grid grid-cols-4 gap-1.5">
-            <button onclick="switchRole('guest')" id="btn-role-guest" class="px-2 py-1.5 text-[10px] rounded-lg font-black bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:scale-105 active:scale-95 fast-transition">زائر</button>
-            <button onclick="switchRole('student')" id="btn-role-student" class="px-2 py-1.5 text-[10px] rounded-lg font-black bg-[#0B5DAA] text-white hover:scale-105 active:scale-95 fast-transition">طالب</button>
-            <button onclick="switchRole('supervisor')" id="btn-role-supervisor" class="px-2 py-1.5 text-[10px] rounded-lg font-black bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:scale-105 active:scale-95 fast-transition">مشرف</button>
-            <button onclick="switchRole('ceo')" id="btn-role-ceo" class="px-2 py-1.5 text-[10px] rounded-lg font-black bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:scale-105 active:scale-95 fast-transition">CEO</button>
-        </div>
-        <div class="border-t border-slate-200 dark:border-slate-800 pt-2.5 flex items-center justify-between">
-            <span class="text-xs font-bold text-slate-500 dark:text-slate-400">الوضع الداكن المريح</span>
-            <button onclick="toggleDarkMode()" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-brand-primary dark:text-brand-secondary hover:scale-110 active:scale-95 fast-transition shadow-sm border-0 cursor-pointer">
-                <i class="fa-solid fa-moon dark:hidden"></i>
-                <i class="fa-solid fa-sun hidden dark:block"></i>
-            </button>
-        </div>
-    </div>
-
-    <!-- الهيدر الرئيسي مع زجاج بلوري ذكي ولامع -->
-    <header class="sticky top-0 z-40 bg-white/70 dark:bg-[#081B33]/70 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50 transition-all">
-        <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
-            <a href="#" onclick="switchRole('guest')" class="flex items-center gap-3 hover:opacity-90 fast-transition">
-                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#0B5DAA] to-[#6AB9FF] p-1 shadow-md overflow-hidden flex items-center justify-center">
-                    <svg class="w-10 h-10 text-white animate-pulse" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- الهيدر الرئيسي -->
+     <header class="sticky top-0 z-40 bg-white/80 dark:bg-[#081B33]/80 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50 transition-all">
+    <nav class="navbar navbar-expand-lg bg-dark">
+  <div class="container">
+   <a href="#"  onclick="switchRole('guest')" class="d-flex justify-content-center align-items-center ms-5 gap-3 link-underline link-underline-opacity-0">
+      <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#0B5DAA] to-[#6AB9FF] p-1 shadow-md overflow-hidden flex items-center justify-center">
+            <svg class="w-10 h-10 text-white animate-pulse" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M10 65 h12 v-15 h8 v10 h15 v-25 h10 v25 h15 v-22 h8 v22 h12 v5 H10 z" fill="#1E293B" opacity="0.3"/>
                         <path d="M15 48 C15 42 22 40 35 40 H75 C83 40 85 43 85 49 V60 C85 62 83 63 78 63 H22 C17 63 15 60 15 60 Z" fill="currentColor"/>
                         <path d="M26 44 h10 v8 h-10 z M40 44 h12 v8 h-12 z M56 44 h12 v8 h-12 z" fill="#081B33" />
                         <circle cx="32" cy="63" r="6" fill="#081B33" stroke="#6AB9FF" stroke-width="2"/>
                         <circle cx="68" cy="63" r="6" fill="#081B33" stroke="#6AB9FF" stroke-width="2"/>
-                    </svg>
-                </div>
-                <div>
-                    <h1 class="text-xl font-black tracking-wider poppins text-[#0B5DAA] dark:text-[#6AB9FF] leading-none">RAHAAL</h1>
-                    <p class="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">النقل الجامعي الذكي</p>
-                </div>
-            </a>
-
-            <!-- الملاحة للزائر -->
-            <nav id="nav-guest" class="hidden md:flex items-center gap-8 text-xs font-black tracking-wide">
-                <a href="#landing-view" class="hover:text-[#0B5DAA] dark:hover:text-[#6AB9FF] fast-transition">الرئيسية</a>
-                <a href="#about" class="hover:text-[#0B5DAA] dark:hover:text-[#6AB9FF] fast-transition">عن رحال</a>
-                <a href="#services" class="hover:text-[#0B5DAA] dark:hover:text-[#6AB9FF] fast-transition">الخدمات</a>
-                <a href="#trips" class="hover:text-[#0B5DAA] dark:hover:text-[#6AB9FF] fast-transition">الرحلات الإحصائية</a>
-            </nav>
-
-            <!-- أزرار الدخول والتسجيل -->
-            <div id="nav-actions" class="flex items-center gap-3">
-                <button onclick="showLogin()" class="px-4 py-2.5 text-xs font-black rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/60 fast-transition border-0 cursor-pointer bg-transparent text-slate-700 dark:text-slate-300">تسجيل الدخول</button>
-                <button onclick="showRegister()" class="btn-gradient text-white px-5 py-2.5 text-xs font-black rounded-xl hover:scale-105 active:scale-95 shadow-light fast-transition border-0 cursor-pointer">إنشاء حساب</button>
-            </div>
-            
-            <!-- بروفايل تسجيل الدخول النشط -->
-            <div id="nav-user-badge" class="hidden flex items-center gap-2.5 bg-slate-100/50 dark:bg-slate-900/50 px-3 py-1.5 rounded-xl border border-slate-200/50 dark:border-slate-800/50">
-                <span class="w-2.5 h-2.5 rounded-full bg-brand-success animate-pulse"></span>
-                <span id="user-display-name" class="text-xs font-black text-[#0B5DAA] dark:text-[#6AB9FF]">محمود أحمد</span>
-                <button onclick="logout()" class="text-rose-500 hover:text-rose-600 text-xs font-bold mr-1 fast-transition bg-transparent border-0 cursor-pointer"><i class="fa-solid fa-power-off"></i></button>
-            </div>
+            </svg>
+       </div>
+        <div>
+            <h1 class="text-xl font-black tracking-wider poppins text-[#0B5DAA] dark:text-[#6AB9FF] leading-none m-0">RAHAAL</h1>
+            <p class="text-[9px] text-slate-400 font-bold tracking-widest uppercase m-0 ">النقل الجامعي الذكي</p>
         </div>
+    </a>
+    <button class="navbar-toggler bg-info" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse " id="navbarSupportedContent">
+      <ul class="navbar-nav m-auto mb-2 mb-lg-0 d-flex justify-content-center align-items-center gap-5">
+        <li class="nav-item">
+          <a href="#landing-view" class="fw-bold text-[#6AB9FF] hover:text-[#0B5DAA] tr link-underline link-underline-opacity-0">الرئيسية</a>
+        </li>
+        <li class="nav-item">
+          <a href="#about" class="fw-bold text-[#6AB9FF] hover:text-[#0B5DAA]  tr link-underline link-underline-opacity-0">عن رحال</a>
+        </li>
+        <li class="nav-item">
+          <a href="#services" class="fw-bold text-[#6AB9FF] hover:text-[#0B5DAA] tr link-underline link-underline-opacity-0">الخدمات</a>
+        </li>
+        <li class="nav-item">
+          <a href="#stats-section" class="fw-bold text-[#6AB9FF] hover:text-[#0B5DAA]  tr link-underline link-underline-opacity-0">إحصائيات</a>
+        </li>
+      </ul>
+
+
+       <div class="flex items-center gap-2.5">
+       <div id="nav-actions" class="flex items-center gap-2">
+            <button onclick="showLogin()" class="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-5 py-2.5 rounded-xl hover:-translate-y-0.5 tr border-0 cursor-pointer">تسجيل الدخول</button>
+            <button onclick="showRegister()" class="btn-gradient text-white px-5 py-2.5 text-xs font-black rounded-xl shadow-light tr border-0 cursor-pointer">إنشاء حساب</button>
+       </div>
+                
+              <!-- بروفايل تسجيل الدخول النشط -->
+          <div id="nav-user-badge" class="hidden flex items-center gap-2.5 bg-slate-100/70 dark:bg-slate-900/70 px-3.5 py-1.5 rounded-xl border border-slate-200/50 dark:border-slate-800/50">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="user-display-name" class="text-xs font-black text-[#0B5DAA] dark:text-[#6AB9FF]">المستخدم</span>
+          <span id="user-role-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500">طالب</span>
+          <button onclick="logout()" title="تسجيل الخروج" class="text-rose-500 hover:text-rose-600 text-xs font-bold mr-1 fast-transition bg-transparent border-0 cursor-pointer"><i class="fa-solid fa-power-off"></i></button>
+         </div>
+       </div>
+    
+    </div>
+  </div>
+</nav>
     </header>
 
-    <!-- المحتوى الدايناميكي النشط للموقع -->
+    <!-- المحتوى الرئيسي -->
     <main class="flex-1 relative z-10">
 
         <!-- ================= 1) LANDING PAGE VIEW ================= -->
@@ -115,84 +116,86 @@
             <!-- Hero Banner -->
             <div class="relative py-32 px-4 text-center overflow-hidden bg-cover bg-center rounded-b-[40px] shadow-2xl" style="background-image: linear-gradient(rgba(8, 27, 51, 0.92), rgba(8, 27, 51, 0.92)), url('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=1200');">
                 <div class="max-w-4xl mx-auto space-y-6 relative z-10">
-                    <span class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#6AB9FF]/10 border border-[#6AB9FF]/20 text-[#6AB9FF] text-[10px] font-black tracking-wide animate-pulse">
-                        🚀 أسطول حافلات مجهز لجامعتي أسيوط الأهلية وسفنكس
-                    </span>
                     <h2 class="text-4xl sm:text-6xl font-black text-white leading-normal">
                         رحال <br> <span class="text-[#6AB9FF] leading-relaxed">النقل الجامعي أصبح أسهل وأسرع.</span>
                     </h2>
                     <p class="text-slate-300 max-w-2xl mx-auto text-xs sm:text-sm leading-relaxed">
-                        احجز مقعدك بثوانٍ معدودة واضمن رحلة ركوب يومية مستقرة من قلب مدينة أسيوط إلى أسيوط الجديدة. نظام رحال مصمم لراحتك.
+                        احجز مقعدك واشترك في باقات النقل الجامعي بثوانٍ معدودة واضمن رحلة ركوب يومية آمنة ومريحة مع تأكيد الحضور الذكي بالـ QR Code.
                     </p>
-                    <div class="flex justify-center gap-4 pt-4">
-                        <button onclick="showRegister()" class="btn-gradient text-white font-black px-8 py-4 rounded-xl shadow-lg shadow-[#0B5DAA]/20 hover:scale-105 hover:-translate-y-0.5 active:scale-95 fast-transition border-0 cursor-pointer">ابدأ الآن</button>
-                        <button onclick="showLogin()" class="bg-white/10 hover:bg-white/20 text-white font-bold border border-white/20 px-8 py-4 rounded-xl hover:-translate-y-0.5 fast-transition border-0 cursor-pointer">تسجيل الدخول</button>
+                    <div class="flex justify-center align-items-center gap-4 pt-4">
+                        <button onclick="showRegister()" class="btn-gradient text-white px-5 py-4 text-xs font-black rounded-xl shadow-light tr border-0 cursor-pointer">ابدأ الآن</button>
+                        <button onclick="showLogin()" class="bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 px-8 py-4 rounded-xl hover:-translate-y-0.5 tr border-0 cursor-pointer">تسجيل الدخول</button>
                     </div>
                 </div>
             </div>
 
-            <!-- المميزات (Features) -->
+            <!-- المميزات -->
             <div id="about" class="max-w-7xl mx-auto px-4 space-y-4 pt-10">
-                <h3 class="text-2xl font-black text-center text-slate-800 dark:text-white leading-loose">مميزات باصات رَحّال</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
-                    <div class="glass-card p-8 rounded-3xl text-center space-y-4 hover:scale-[1.03] hover:shadow-xl hover:shadow-brand-primary/10">
+                <h3 class="text-2xl font-black text-center text-slate-800 dark:text-white leading-loose scroll-reveal">مميزات باصات رَحّال</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 stagger-container">
+                    <div class="glass-card feature-card scroll-reveal p-8 rounded-3xl text-center space-y-4 hover:scale-[1.02] hover:shadow-xl hover:shadow-brand-primary/10">
                         <div class="w-16 h-16 bg-[#0B5DAA]/10 text-[#0B5DAA] dark:text-[#6AB9FF] text-3xl flex items-center justify-center rounded-2xl mx-auto">🚍</div>
-                        <h4 class="text-lg font-black">باصات حديثة</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">أسطول متكامل من الحافلات السياحية المكيفة والمجهزة بأعلى سبل الراحة والأمان للطلاب.</p>
+                        <h4 class="text-lg font-black">أسطول حافلات حديث</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">أسطول متكامل من الحافلات السياحية المكيفة والمجهزة بأعلى معايير الراحة والسلامة.</p>
                     </div>
-                    <div class="glass-card p-8 rounded-3xl text-center space-y-4 hover:scale-[1.03] hover:shadow-xl hover:shadow-brand-primary/10">
-                        <div class="w-16 h-16 bg-[#0B5DAA]/10 text-[#0B5DAA] dark:text-[#6AB9FF] text-3xl flex items-center justify-center rounded-2xl mx-auto">🕒</div>
-                        <h4 class="text-lg font-black">الالتزام بالمواعيد</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">جدول زمني صارم للذهاب والعودة يتوافق مع مواعيد محاضراتك دون أي تأخير.</p>
+                    <div class="glass-card feature-card scroll-reveal p-8 rounded-3xl text-center space-y-4 hover:scale-[1.02] hover:shadow-xl hover:shadow-brand-primary/10">
+                        <div class="w-16 h-16 bg-[#0B5DAA]/10 text-[#0B5DAA] dark:text-[#6AB9FF] text-3xl flex items-center justify-center rounded-2xl mx-auto">📱</div>
+                        <h4 class="text-lg font-black">بطاقة صعود QR ذكية</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">تأكيد الركوب والحضور إلكترونيًا عبر مسح كود الـ QR بكل سهولة وسرعة مع مشرف الرحلة.</p>
                     </div>
-                    <div class="glass-card p-8 rounded-3xl text-center space-y-4 hover:scale-[1.03] hover:shadow-xl hover:shadow-brand-primary/10">
-                        <div class="w-16 h-16 bg-[#0B5DAA]/10 text-[#0B5DAA] dark:text-[#6AB9FF] text-3xl flex items-center justify-center rounded-2xl mx-auto">🛡️</div>
-                        <h4 class="text-lg font-black">مشرف مع كل رحلة</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">مرافقة مشرفين أكفاء طوال رحلات الذهاب والعودة لتنظيم عملية صعود ومغادرة الحافلات.</p>
+                    <div class="glass-card feature-card scroll-reveal p-8 rounded-3xl text-center space-y-4 hover:scale-[1.02] hover:shadow-xl hover:shadow-brand-primary/10">
+                        <div class="w-16 h-16 bg-[#0B5DAA]/10 text-[#6AB9FF] text-3xl flex items-center justify-center rounded-2xl mx-auto">🛡️</div>
+                        <h4 class="text-lg font-black">إشراف ومتابعة مستمرة</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">مشرف مخصص لكل خط سير لتنظيم الركوب ومساعدة الطلاب طوال الرحلة.</p>
                     </div>
                 </div>
             </div>
 
-            <!-- خطوات العمل (Steps) -->
-            <div id="services" class="max-w-7xl mx-auto px-4 py-14 bg-slate-100/50 dark:bg-slate-900/30 rounded-[30px] space-y-6">
-                <h3 class="text-2xl font-black text-center text-slate-800 dark:text-white leading-loose">كيف يعمل النظام؟</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-12 text-center pt-6">
-                    <div class="space-y-3">
+            <!-- خطوات العمل -->
+            <div id="services" class="bg-[#081B33] max-w-7xl mx-auto px-4 py-14 rounded-[30px] space-y-6">
+                <h3 class="text-2xl font-black text-center text-slate-800 dark:text-white leading-loose scroll-reveal">كيف يعمل نظام رحال؟</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-8 text-center pt-6 stagger-container">
+                    <div class="step-card scroll-reveal space-y-3">
                         <div class="w-12 h-12 bg-[#0B5DAA] text-white text-base font-black rounded-full flex items-center justify-center mx-auto shadow-md">١</div>
-                        <h4 class="font-black text-sm">سجل حسابك</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">أنشئ حسابك الشخصي كطالب، وارفع صورة الكارنيه للتأكيد في النظام.</p>
+                        <h4 class="font-black text-sm">سجل بياناتك</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">أنشئ حسابك الجامعي وارفع صورة الكارنيه للتأكيد في النظام.</p>
                     </div>
-                    <div class="space-y-3">
+                    <div class="step-card scroll-reveal space-y-3">
                         <div class="w-12 h-12 bg-[#0B5DAA] text-white text-base font-black rounded-full flex items-center justify-center mx-auto shadow-md">٢</div>
-                        <h4 class="font-black text-sm">اختر ميعادك</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">حدد خط السير، ونقطة التجمع المناسبة وموعد التحرك لرحلتك القادمة.</p>
+                        <h4 class="font-black text-sm">أكّد رقم الهاتف (OTP)</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">استلم رمز التحقق عبر الواتساب لتفعيل حسابك وتأمينه فوراً.</p>
                     </div>
-                    <div class="space-y-3">
+                    <div class="step-card scroll-reveal space-y-3">
                         <div class="w-12 h-12 bg-[#0B5DAA] text-white text-base font-black rounded-full flex items-center justify-center mx-auto shadow-md">٣</div>
-                        <h4 class="font-black text-sm">اركب الباص بأمان</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">اعرض رمز الـ QR الحصري الخاص بك للمشرف واصعد في رحلتك السريعة.</p>
+                        <h4 class="font-black text-sm">اشترك أو احجز مقعدك</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">اختر باقة الاشتراك المناسبة أو احجز رحلتك الفردية ونقطة التجمع.</p>
+                    </div>
+                    <div class="step-card scroll-reveal space-y-3">
+                        <div class="w-12 h-12 bg-[#0B5DAA] text-white text-base font-black rounded-full flex items-center justify-center mx-auto shadow-md">٤</div>
+                        <h4 class="font-black text-sm">اصعد الباص بالـ QR</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">اعرض رمز الـ QR الرقمي لمشرف الحافلة واصعد رحلتك بأمان.</p>
                     </div>
                 </div>
             </div>
 
-            <!-- العدادات الإحصائية (Stats) -->
-            <div id="trips" class="max-w-7xl mx-auto px-4 pt-4">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-                    <div class="glass-card p-6 rounded-2xl">
-                        <h4 class="text-3xl sm:text-5xl font-black text-brand-primary poppins leading-relaxed" data-target="1000">0</h4>
-                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 mt-2">+1000 طالب وطالبة</p>
+            <!-- العدادات -->
+            <div id="stats-section" class="max-w-7xl mx-auto px-4 pt-4">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center stagger-container">
+                    <div class="glass-card stat-card tr scroll-reveal p-6 rounded-2xl">
+                        <h4 id="landing-stat-students" data-target="0" data-suffix="+" class="stat-counter text-3xl sm:text-5xl font-black text-brand-primary poppins leading-relaxed">0</h4>
+                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 mt-2">طالب وطالبة مسجلين</p>
                     </div>
-                    <div class="glass-card p-6 rounded-2xl">
-                        <h4 class="text-3xl sm:text-5xl font-black text-brand-primary poppins leading-relaxed" data-target="20">0</h4>
-                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 mt-2">+20 باص سياحي</p>
+                    <div class="glass-card stat-card tr scroll-reveal p-6 rounded-2xl">
+                        <h4 id="landing-stat-buses" data-target="0" data-suffix="+" class="stat-counter text-3xl sm:text-5xl font-black text-brand-primary poppins leading-relaxed">0</h4>
+                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 mt-2">حافلة سياحية نشطة</p>
                     </div>
-                    <div class="glass-card p-6 rounded-2xl">
-                        <h4 class="text-3xl sm:text-5xl font-black text-brand-primary poppins leading-relaxed" data-target="50">0</h4>
-                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 mt-2">+50 نقطة تجمع بأسيوط</p>
+                    <div class="glass-card stat-card tr scroll-reveal p-6 rounded-2xl">
+                        <h4 id="landing-stat-stations" data-target="0" data-suffix="+" class="stat-counter text-3xl sm:text-5xl font-black text-brand-primary poppins leading-relaxed">0</h4>
+                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 mt-2">محطة ونقطة تجمع</p>
                     </div>
-                    <div class="glass-card p-6 rounded-2xl">
-                        <h4 class="text-3xl sm:text-5xl font-black text-[#2ECC71] poppins leading-relaxed" data-target="98">0</h4>
-                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 mt-2">98% تقييم رضا الطلاب</p>
+                    <div class="glass-card stat-card tr scroll-reveal p-6 rounded-2xl">
+                        <h4 id="landing-stat-punctuality" data-target="100" data-suffix="%" class="stat-counter text-3xl sm:text-5xl font-black text-[#2ECC71] poppins leading-relaxed">99%</h4>
+                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 mt-2">نسبة الالتزام بالمواعيد</p>
                     </div>
                 </div>
             </div>
@@ -212,26 +215,32 @@
                         </svg>
                     </div>
                     <h3 class="text-xl font-black leading-relaxed">بوابة تسجيل الدخول</h3>
-                    <p class="text-xs text-slate-400">مرحباً بك مجدداً في نظام رحال للنقل الجامعي</p>
+                    <p class="text-xs text-slate-400">سجل الدخول برقم هاتفك المسجل وكلمة المرور</p>
                 </div>
 
                 <form onsubmit="handleLoginSubmit(event)" class="space-y-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 mb-1.5">رقم الهاتف</label>
-                        <input type="tel" id="login-phone" required placeholder="01xxxxxxxxx" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
+                        <label class="block text-xs font-bold text-slate-400 mb-1.5">رقم الهاتف المسجل</label>
+                        <input type="tel" id="login-phone" required placeholder="01xxxxxxxxx" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary font-mono text-left">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-400 mb-1.5">كلمة المرور</label>
                         <input type="password" id="login-pass" required placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
                     </div>
-                    <button type="submit" class="w-full btn-gradient py-3.5 text-xs font-black rounded-xl text-white hover:scale-[1.02] active:scale-95 fast-transition shadow-md border-0 cursor-pointer">دخول الحساب</button>
+                    <button type="submit" id="btn-login-submit" class="w-full btn-gradient py-3.5 text-xs font-black rounded-xl text-white hover:scale-[1.02] active:scale-95 fast-transition shadow-md border-0 cursor-pointer flex items-center justify-center gap-2">
+                        <span>دخول الحساب</span>
+                    </button>
                 </form>
+
+                <div class="text-center pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <p class="text-xs text-slate-400">ليس لديك حساب بعد؟ <a href="#" onclick="showRegister()" class="text-brand-primary dark:text-[#6AB9FF] font-bold hover:underline">أنشئ حساب طالب جديد</a></p>
+                </div>
             </div>
         </section>
 
 
         <!-- ================= 3) REGISTER VIEW ================= -->
-        <section id="register-view" class="hidden max-w-lg mx-auto my-16 px-4 view-transition">
+        <section id="register-view" class="hidden max-w-xl mx-auto my-16 px-4 view-transition">
             <div class="glass-card p-8 rounded-3xl space-y-6 shadow-2xl border border-slate-200/50 dark:border-slate-800/50">
                 <div class="text-center space-y-3">
                     <div class="w-16 h-16 bg-[#0B5DAA]/10 rounded-2xl flex items-center justify-center p-1 shadow-md mx-auto">
@@ -243,282 +252,385 @@
                         </svg>
                     </div>
                     <h3 class="text-xl font-black leading-relaxed">إنشاء حساب طالب جديد</h3>
-                    <p class="text-xs text-slate-400">سجل بياناتك للبدء في حجز مقعدك اليومي بأمان</p>
+                    <p class="text-xs text-slate-400">سجل بياناتك للبدء، سيتم إرسال رمز تأكيد OTP عبر الواتساب</p>
                 </div>
+
                 <form onsubmit="handleRegisterSubmit(event)" class="space-y-4">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-bold text-slate-400 mb-1.5">الاسم ثلاثي</label>
-                            <input type="text" id="reg-name" required placeholder="الاسم ثلاثي كما في الكارنيه" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
+                            <label class="block text-xs font-bold text-slate-400 mb-1.5">الاسم بالكامل (ثلاثي / رباعي)</label>
+                            <input type="text" id="reg-name" required placeholder="مثال: أحمد علي محمد" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-400 mb-1.5">الجنس</label>
                             <select id="reg-gender" required class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
-                                <option value="ذكر">ذكر</option>
-                                <option value="أنثى">أنثى</option>
+                                <option value="MALE">ذكر</option>
+                                <option value="FEMALE">أنثى</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-400 mb-1.5">رقم الهاتف</label>
-                            <input type="tel" id="reg-phone" required placeholder="01xxxxxxxxx" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
+                            <label class="block text-xs font-bold text-slate-400 mb-1.5">رقم الهاتف (مع كود الدولة أو 01)</label>
+                            <input type="tel" id="reg-phone" required placeholder="01012345678" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary font-mono text-left">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-400 mb-1.5">الجامعة</label>
-                            <select id="reg-university" required class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
-                                <option value="أسيوط الأهلية">جامعة أسيوط الأهلية</option>
-                                <option value="سفنكس">جامعة سفنكس</option>
+                            <select id="reg-university-select" required class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
+                                <option value="" disabled selected>اختر الجامعة المقيد بها</option>
+                                <option value="1">جامعة أسيوط الأهلية</option>
+                                <option value="2">جامعة سفينكس</option>
                             </select>
                         </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1.5">الكلية</label>
+                            <input type="text" id="reg-faculty" required placeholder="مثال: كلية الهندسة" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1.5">السنة الدراسية</label>
+                            <input type="text" id="reg-academic-year" required placeholder="مثال: الفرقة الثالثة" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
+                        </div>
                     </div>
+
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 mb-1.5">صورة الكارنيه الجامعي (أو إثبات قيد)</label>
-                        <input type="file" id="reg-card" required class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                        <label class="block text-xs font-bold text-slate-400 mb-1.5">صورة الكارنيه الجامعي (أو إثبات القيد)</label>
+                        <input type="file" id="reg-card-file" accept="image/*,.pdf" required class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0B5DAA] file:text-white hover:file:bg-[#6AB9FF] file:cursor-pointer">
                     </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-bold text-slate-400 mb-1.5">كلمة المرور</label>
-                            <input type="password" id="reg-pass" required placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
+                            <label class="block text-xs font-bold text-slate-400 mb-1.5">كلمة المرور (8 خانات على الأقل)</label>
+                            <input type="password" id="reg-pass" minlength="8" required placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-400 mb-1.5">تأكيد كلمة المرور</label>
-                            <input type="password" id="reg-confirm" required placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
+                            <input type="password" id="reg-confirm" minlength="8" required placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
                         </div>
                     </div>
-                    <button type="submit" class="w-full btn-gradient py-3.5 text-xs font-black rounded-xl text-white hover:scale-[1.02] active:scale-95 fast-transition shadow-md border-0 cursor-pointer">تسجيل وإنشاء الحساب</button>
+
+                    <button type="submit" id="btn-register-submit" class="w-full btn-gradient py-3.5 text-xs font-black rounded-xl text-white hover:scale-[1.02] active:scale-95 fast-transition shadow-md border-0 cursor-pointer flex items-center justify-center gap-2">
+                        <span>تسجيل الحساب وإرسال رمز التحقق</span>
+                    </button>
                 </form>
+
+                <div class="text-center pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <p class="text-xs text-slate-400">لديك حساب بالفعل؟ <a href="#" onclick="showLogin()" class="text-brand-primary dark:text-[#6AB9FF] font-bold hover:underline">سجل دخولك هنا</a></p>
+                </div>
             </div>
         </section>
 
 
-        <!-- ================= 4) STUDENT DASHBOARD ================= -->
+        <!-- ================= 4) OTP VERIFICATION VIEW / MODAL ================= -->
+        <div id="otp-view" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+            <div class="glass-card p-8 rounded-3xl w-full max-w-md mx-4 space-y-6 shadow-2xl border border-slate-200/50 dark:border-slate-800/50 animate-[fadeIn_0.15s_ease-out]">
+                <div class="text-center space-y-2">
+                    <div class="w-14 h-14 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center mx-auto text-2xl">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800 dark:text-white">تأكيد رقم الهاتف عبر الواتساب</h3>
+                    <p class="text-xs text-slate-400">تم إرسال كود التحقق المكون من 6 أرقام إلى الرقم:</p>
+                    <p id="otp-phone-display" class="font-mono font-bold text-sm text-brand-primary dark:text-[#6AB9FF] dir-ltr">+2010xxxxxxxx</p>
+                </div>
+
+                <form onsubmit="handleOtpSubmit(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1.5 text-center">أدخل كود التحقق (OTP Code)</label>
+                        <input type="text" id="otp-code-input" maxlength="10" required placeholder="123456" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-center text-xl tracking-widest font-mono font-bold focus:outline-none focus:border-brand-primary">
+                    </div>
+                    <button type="submit" id="btn-otp-verify" class="w-full btn-gradient py-3.5 text-xs font-black rounded-xl text-white hover:scale-[1.02] active:scale-95 fast-transition shadow-md border-0 cursor-pointer">
+                        تأكيد وتفعيل الحساب
+                    </button>
+                </form>
+
+                <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <button id="btn-resend-otp" onclick="handleResendOtp()" class="text-brand-primary dark:text-[#6AB9FF] font-bold hover:underline bg-transparent border-0 cursor-pointer">إعادة إرسال الكود</button>
+                    <button onclick="closeOtpModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-transparent border-0 cursor-pointer">إلغاء / تغيير الرقم</button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ================= 5) STUDENT DASHBOARD ================= -->
         <section id="student-view" class="hidden max-w-7xl mx-auto p-6 space-y-8 view-transition">
-            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-5">
+            <!-- Student Header -->
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
                 <div>
-                    <h2 class="text-3xl font-black text-[#0B5DAA] dark:text-[#6AB9FF] leading-relaxed">مرحبًا يا زياد 👋</h2>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">جامعة أسيوط الأهلية | كلية الهندسة والعلوم التطبيقية</p>
+                    <h2 class="text-2xl sm:text-3xl font-black text-[#0B5DAA] dark:text-[#6AB9FF] leading-relaxed">
+                        مرحبًا، <span id="student-header-name">الطالب</span> 👋
+                    </h2>
+                    <p id="student-header-meta" class="text-xs text-slate-500 dark:text-slate-400">جامعة أسيوط الأهلية | كلية الهندسة</p>
                 </div>
-                <div class="w-12 h-12 rounded-full bg-[#0B5DAA]/10 border border-[#0B5DAA]/30 flex items-center justify-center text-xl font-bold text-[#0B5DAA]">ز</div>
-            </div>
-
-            <!-- Student Quick Stats Cards -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="glass-card p-5 rounded-2xl flex items-center gap-4">
-                    <div class="p-3 bg-[#0B5DAA]/10 text-[#0B5DAA] rounded-xl"><i class="fa-solid fa-clock text-lg"></i></div>
-                    <div>
-                        <p class="text-[10px] text-slate-400 font-bold">ميعاد الذهاب</p>
-                        <p class="text-xs font-black">07:30 صباحاً</p>
-                    </div>
-                </div>
-                <div class="glass-card p-5 rounded-2xl flex items-center gap-4">
-                    <div class="p-3 bg-[#0B5DAA]/10 text-[#0B5DAA] rounded-xl"><i class="fa-solid fa-right-left text-lg"></i></div>
-                    <div>
-                        <p class="text-[10px] text-slate-400 font-bold">ميعاد العودة</p>
-                        <p class="text-xs font-black">03:30 عصراً</p>
-                    </div>
-                </div>
-                <div class="glass-card p-5 rounded-2xl flex items-center gap-4">
-                    <div class="p-3 bg-[#0B5DAA]/10 text-[#0B5DAA] rounded-xl"><i class="fa-solid fa-map-pin text-lg"></i></div>
-                    <div>
-                        <p class="text-[10px] text-slate-400 font-bold">مكان التجمع</p>
-                        <p class="text-xs font-black">موقف الفريال</p>
-                    </div>
-                </div>
-                <div class="glass-card p-5 rounded-2xl flex items-center gap-4">
-                    <div class="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl"><i class="fa-solid fa-credit-card text-lg"></i></div>
-                    <div>
-                        <p class="text-[10px] text-slate-400 font-bold">طريقة الدفع</p>
-                        <p class="text-xs font-black">InstaPay 💳</p>
-                    </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="openBuySubscriptionModal()" class="btn-gradient text-white px-4 py-2.5 rounded-xl text-xs font-black hover:scale-105 active:scale-95 fast-transition border-0 cursor-pointer shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-ticket"></i>
+                        <span>شراء اشتراك جديد</span>
+                    </button>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Main columns -->
-                <div class="lg:col-span-2 space-y-6">
-                    <div class="glass-card p-6 rounded-2xl space-y-4 shadow-sm">
-                        <h3 class="text-lg font-black text-[#0B5DAA] dark:text-[#6AB9FF]">تأكيد مقعد الغد</h3>
-                        <p class="text-xs text-slate-400 leading-relaxed">يرجى اختيار مواعيدك ومحطات التجمع للذهاب والعودة لتأكيد مكانك في كشوفات الحضور النشطة.</p>
-                        
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <!-- الخانة الأولى: مكان التجمع (الذهاب) -->
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1.5">مكان تجمع الذهاب</label>
-                                <select id="student-pickup" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs focus:outline-none">
-                                    <option value="موقف الفريال">موقف الفريال</option>
-                                    <option value="موقف الأزهر">موقف الأزهر</option>
-                                    <option value="شارع السادات">شارع السادات</option>
-                                    <option value="شركة الهواتف">شركة الهواتف - وسط البلد</option>
-                                </select>
-                            </div>
-                            
-                            <!-- الخانة الثانية: الجامعة -->
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1.5">الجامعة المتوجه إليها</label>
-                                <select id="student-uni-select" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs focus:outline-none">
-                                    <option value="جامعة أسيوط الأهلية">جامعة أسيوط الأهلية</option>
-                                    <option value="جامعة سفنكس">جامعة سفنكس</option>
-                                </select>
-                            </div>
+            <!-- Student Tabs -->
+            <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto">
+                <button onclick="switchStudentTab('sub-card', this)" class="student-tab-btn px-4 py-2.5 rounded-xl text-xs font-black bg-brand-primary text-white border-0 cursor-pointer fast-transition">
+                    <i class="fa-solid fa-qrcode mr-1"></i> البطاقة الرقمية والاشتراكات
+                </button>
+                <button onclick="switchStudentTab('trips-booking', this)" class="student-tab-btn px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 border-0 cursor-pointer fast-transition bg-transparent">
+                    <i class="fa-solid fa-bus mr-1"></i> حجز الرحلات الفردية
+                </button>
+                <button onclick="switchStudentTab('payments', this)" class="student-tab-btn px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 border-0 cursor-pointer fast-transition bg-transparent">
+                    <i class="fa-solid fa-wallet mr-1"></i> سجل المدفوعات
+                </button>
+                <button onclick="switchStudentTab('profile', this)" class="student-tab-btn px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 border-0 cursor-pointer fast-transition bg-transparent">
+                    <i class="fa-solid fa-user mr-1"></i> الملف الشخصي
+                </button>
+            </div>
 
-                            <!-- الخانة الثالثة: ميعاد الذهاب -->
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1.5">ميعاد الذهاب صباحاً</label>
-                                <select id="student-go-time-select" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs focus:outline-none">
-                                    <option value="07:30 صباحاً">07:30 صباحاً</option>
-                                    <option value="08:15 صباحاً">08:15 صباحاً</option>
-                                    <option value="09:00 صباحاً">09:00 صباحاً</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <!-- الخانة الرابعة: مكان العودة (النزول) -->
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1.5">مكان العودة (محطة النزول)</label>
-                                <select id="student-return-pickup" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs focus:outline-none">
-                                    <option value="موقف الفريال">موقف الفريال</option>
-                                    <option value="موقف الأزهر">موقف الأزهر</option>
-                                    <option value="شارع السادات">شارع السادات</option>
-                                    <option value="شركة الهواتف">شركة الهواتف - وسط البلد</option>
-                                </select>
-                            </div>
-
-                            <!-- الخانة الخامسة: ميعاد العودة -->
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1.5">ميعاد العودة المفضل</label>
-                                <select id="student-return-time-select" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs focus:outline-none">
-                                    <option value="02:30 ظهراً">02:30 ظهراً</option>
-                                    <option value="03:30 عصراً">03:30 عصراً</option>
-                                    <option value="05:00 عصراً">05:00 عصراً</option>
-                                </select>
-                            </div>
+            <!-- TAB 1: Smart QR & Subscriptions -->
+            <div id="student-tab-sub-card" class="student-subview space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Smart QR Card -->
+                    <div class="glass-card p-6 rounded-3xl text-center space-y-4 shadow-sm border border-slate-200/50 dark:border-slate-800/50">
+                        <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+                            <h3 class="font-black text-sm text-[#0B5DAA] dark:text-[#6AB9FF]">بطاقة صعود الباص الرقمية</h3>
+                            <span id="student-qr-status" class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-500">نشط</span>
                         </div>
                         
-                        <button onclick="bookStudentTrip()" class="w-full btn-gradient py-3.5 text-xs font-black rounded-xl text-white hover:scale-[1.01] active:scale-95 fast-transition shadow-md border-0 cursor-pointer">تأكيد حجز مقعد الغد</button>
+                        <div class="w-48 h-48 bg-white p-3 rounded-2xl mx-auto flex items-center justify-center border border-slate-200 shadow-md" id="student-qr-container">
+                            <!-- QR Code rendered via QRCode.js -->
+                            <div id="student-qrcode-box" class="w-full h-full flex items-center justify-center"></div>
+                        </div>
+
+                        <div class="space-y-1 text-xs">
+                            <p class="font-black text-slate-800 dark:text-white" id="student-qr-route-name">خط السير: جاري التحميل...</p>
+                            <p class="text-[10px] text-slate-400 font-mono" id="student-qr-validity">الصلاحية: -- إلى --</p>
+                        </div>
+                        <p class="text-[10px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl">امسح الكود عبر هاتف المشرف لتأكيد حضورك وصعود الباص عند نقطة التحرك.</p>
                     </div>
 
-                    <!-- Booking Schedule -->
-                    <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
-                        <div class="p-5 border-b border-slate-200 dark:border-slate-800">
-                            <h3 class="font-bold text-sm">جدول الرحلات والخطوط اليومية النشطة</h3>
+                    <!-- Active Subscription Stats & Details -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="glass-card p-6 rounded-3xl space-y-4 shadow-sm">
+                            <h3 class="font-black text-sm text-slate-800 dark:text-white">تفاصيل الاشتراك الحالي</h3>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4" id="student-subscription-stats">
+                                <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                                    <p class="text-[10px] text-slate-400 font-bold">نوع الباقة</p>
+                                    <p id="sub-stat-plan" class="text-sm font-black text-brand-primary mt-1">--</p>
+                                </div>
+                                <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                                    <p class="text-[10px] text-slate-400 font-bold">مرات الصعود</p>
+                                    <p id="sub-stat-rides" class="text-sm font-black text-emerald-500 mt-1">0 رحلة</p>
+                                </div>
+                                <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                                    <p class="text-[10px] text-slate-400 font-bold">تجمع الذهاب</p>
+                                    <p id="sub-stat-outbound" class="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1">--</p>
+                                </div>
+                                <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                                    <p class="text-[10px] text-slate-400 font-bold">تجمع العودة</p>
+                                    <p id="sub-stat-return" class="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1">--</p>
+                                </div>
+                            </div>
                         </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-right text-xs">
-                                <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
-                                    <tr>
-                                        <th class="p-4">خط السير (من ← إلى)</th>
-                                        <th class="p-4">موعد التحرك</th>
-                                        <th class="p-4">حافلة الركوب</th>
-                                        <th class="p-4">المشرف المسؤول</th>
-                                        <th class="p-4">الحالة</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="student-trips-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                    <!-- Dynamic Trips from mockTrips -->
-                                </tbody>
-                            </table>
+
+                        <!-- Boarding History for Active Subscription -->
+                        <div class="glass-card rounded-3xl overflow-hidden shadow-sm">
+                            <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                                <h3 class="font-black text-sm">سجل ركوب وصعود الحافلات (Boarding History)</h3>
+                                <button onclick="loadStudentBoardingHistory()" class="text-xs text-brand-primary font-bold hover:underline bg-transparent border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-right text-xs">
+                                    <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                        <tr>
+                                            <th class="p-4">الاتجاه</th>
+                                            <th class="p-4">نقطة الركوب</th>
+                                            <th class="p-4">المشرف المسؤول</th>
+                                            <th class="p-4">توقيت الصعود</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="student-boarding-history-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                        <tr><td colspan="4" class="p-6 text-center text-slate-400">جاري تحميل سجل الصعود...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Info Sidebar panels -->
-                <div class="space-y-6">
-                    <div class="glass-card p-6 rounded-2xl text-center space-y-4 shadow-sm">
-                        <h3 class="font-bold text-sm">البطاقة الرقمية (QR Code) لركوب الباص</h3>
-                        <div class="w-36 h-36 bg-white p-2 rounded-xl mx-auto flex items-center justify-center border border-slate-200 shadow-sm">
-                            <svg class="w-32 h-32 text-slate-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M3 3h4v4H3zM17 3h4v4h-4zM3 17h4v4H3zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2v2h-2zM18 14h2v2h-2zM10 10h4v4h-4z" />
-                            </svg>
+            <!-- TAB 2: Trips & Single Reservations -->
+            <div id="student-tab-trips-booking" class="student-subview hidden space-y-6">
+                <!-- Available Scheduled Trips Table -->
+                <div class="glass-card rounded-3xl overflow-hidden shadow-sm">
+                    <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                        <div>
+                            <h3 class="font-black text-sm">الرحلات اليومية المتاحة للحجز الفردي</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">احجز مقعدك في الرحلات القادمة</p>
                         </div>
-                        <p class="text-[10px] text-slate-400 leading-relaxed">امسح الكود عبر هاتف المشرف لتأكيد حضورك وصعود الباص عند نقطة التحرك.</p>
+                        <button onclick="loadAvailableTripsForStudent()" class="text-xs text-brand-primary font-bold hover:underline bg-transparent border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
                     </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                <tr>
+                                    <th class="p-4">خط السير</th>
+                                    <th class="p-4">موعد المغادرة</th>
+                                    <th class="p-4">المقاعد المتبقية</th>
+                                    <th class="p-4">سعر التذكرة</th>
+                                    <th class="p-4 text-center">إجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody id="student-available-trips-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                <tr><td colspan="5" class="p-6 text-center text-slate-400">جاري تحميل الرحلات المتاحة...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
-                    <div class="glass-card p-6 rounded-2xl space-y-4 shadow-sm">
-                        <h3 class="font-bold text-sm">طرق دفع باقة النقل</h3>
-                        <div class="grid grid-cols-3 gap-2 text-center text-[10px] font-bold">
-                            <button onclick="showToast('الدفع النقدي متاح مع مشرف الباص', 'info')" class="bg-slate-100 dark:bg-slate-900 p-2.5 rounded-xl hover:scale-105 active:scale-95 fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">💵 نقدًا</button>
-                            <button onclick="showToast('رقم فودافون كاش الخاص بـ رحال: 01011223344', 'info')" class="bg-red-500/10 text-red-500 p-2.5 rounded-xl hover:scale-105 active:scale-95 fast-transition border-0 cursor-pointer">📱 Cash</button>
-                            <button onclick="showToast('حساب انستاباي الخاص بـ رحال: rahaal@instapay', 'info')" class="bg-emerald-500/10 text-emerald-500 p-2.5 rounded-xl hover:scale-105 active:scale-95 fast-transition border-0 cursor-pointer">💳 InstaPay</button>
-                        </div>
+                <!-- My Reservations Table -->
+                <div class="glass-card rounded-3xl overflow-hidden shadow-sm">
+                    <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                        <h3 class="font-black text-sm">حجوزاتي السابقة والحالية</h3>
+                        <button onclick="loadMyReservations()" class="text-xs text-brand-primary font-bold hover:underline bg-transparent border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
                     </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                <tr>
+                                    <th class="p-4">رقم الحجز</th>
+                                    <th class="p-4">الرحلة</th>
+                                    <th class="p-4">تاريخ الحجز</th>
+                                    <th class="p-4">الحالة</th>
+                                    <th class="p-4 text-center">العمليات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="student-my-reservations-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                <tr><td colspan="5" class="p-6 text-center text-slate-400">جاري تحميل الحجوزات...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-                    <!-- Profile Update Card -->
-                    <div class="glass-card p-6 rounded-2xl space-y-4 shadow-sm">
-                        <h3 class="font-bold text-sm">الملف الشخصي للطالب</h3>
-                        <div class="space-y-3">
-                            <input type="text" id="profile-name-val" value="زياد أحمد علي" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-brand-primary">
-                            <input type="password" id="profile-pass-val" placeholder="تغيير كلمة المرور" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-brand-primary">
-                            <button onclick="saveStudentProfileChanges()" class="w-full bg-slate-100 dark:bg-slate-900 hover:bg-brand-primary border border-slate-200 dark:border-slate-800 hover:text-white py-2.5 text-xs font-bold rounded-xl fast-transition shadow-sm border-0 cursor-pointer">حفظ التغييرات</button>
+            <!-- TAB 3: My Payments -->
+            <div id="student-tab-payments" class="student-subview hidden space-y-6">
+                <div class="glass-card rounded-3xl overflow-hidden shadow-sm">
+                    <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                        <div>
+                            <h3 class="font-black text-sm">سجل المدفوعات والتحويلات</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">تتبع حالات الدفع وتقديم إيصالات التحويل (Vodafone Cash / InstaPay)</p>
                         </div>
+                        <button onclick="loadMyPayments()" class="text-xs text-brand-primary font-bold hover:underline bg-transparent border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
                     </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                <tr>
+                                    <th class="p-4">رقم العملية</th>
+                                    <th class="p-4">المبلغ</th>
+                                    <th class="p-4">طريقة الدفع</th>
+                                    <th class="p-4">المرجع / التحويل</th>
+                                    <th class="p-4">الحالة</th>
+                                    <th class="p-4 text-center">العمليات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="student-my-payments-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                <tr><td colspan="6" class="p-6 text-center text-slate-400">جاري تحميل سجل المدفوعات...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: Profile -->
+            <div id="student-tab-profile" class="student-subview hidden space-y-6 max-w-2xl mx-auto">
+                <div class="glass-card p-8 rounded-3xl space-y-6 shadow-sm">
+                    <h3 class="font-black text-lg text-brand-primary">الملف الشخصي للطالب</h3>
+                    <form onsubmit="handleStudentProfileUpdate(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1.5">الاسم ثلاثي</label>
+                            <input type="text" id="prof-name" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 mb-1.5">الكلية</label>
+                                <input type="text" id="prof-faculty" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 mb-1.5">الفرقة الدراسية</label>
+                                <input type="text" id="prof-academic-year" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full btn-gradient py-3 text-xs font-bold text-white rounded-xl hover:scale-[1.01] fast-transition border-0 cursor-pointer">حفظ تعديلات الملف</button>
+                    </form>
                 </div>
             </div>
         </section>
 
 
-        <!-- ================= 5) SUPERVISOR DASHBOARD ================= -->
+        <!-- ================= 6) SUPERVISOR DASHBOARD ================= -->
         <section id="supervisor-view" class="hidden max-w-7xl mx-auto p-6 space-y-8 view-transition">
-            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-5">
+            <!-- Supervisor Header -->
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
                 <div>
-                    <h2 class="text-3xl font-black text-[#0B5DAA] dark:text-[#6AB9FF] leading-relaxed">مرحبًا، مشرف الباص: محمد رأفت 👮‍♂️</h2>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">حافلة رقم 1 | لوحات أ ج ص 124 | جامعة أسيوط الأهلية</p>
+                    <h2 class="text-2xl sm:text-3xl font-black text-[#0B5DAA] dark:text-[#6AB9FF] leading-relaxed">
+                        مرحبًا، مشرف الرحلة: <span id="supervisor-header-name">محمد رأفت</span> 👮‍♂️
+                    </h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">بوابة المشرفين لإدارة الحضور ومسح الـ QR للركوب</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="openSupervisorScanModal()" class="btn-gradient text-white px-5 py-2.5 rounded-xl text-xs font-black hover:scale-105 active:scale-95 fast-transition border-0 cursor-pointer shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-qrcode"></i>
+                        <span>مسح كود QR للطالب</span>
+                    </button>
                 </div>
             </div>
 
+            <!-- Active Trip Selector -->
+            <div class="glass-card p-6 rounded-3xl space-y-4 shadow-sm border border-slate-200/50 dark:border-slate-800/50">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="space-y-1">
+                        <label class="block text-xs font-black text-slate-700 dark:text-slate-300">اختر الرحلة المجدولة للعمل عليها اليوم:</label>
+                        <select id="supervisor-trip-select" onchange="onSupervisorTripChanged()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-brand-primary min-w-[280px]">
+                            <option value="">جاري تحميل الرحلات المجدولة...</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-4 text-xs font-bold" id="supervisor-trip-meta">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="glass-card p-6 rounded-2xl flex items-center justify-between shadow-sm">
                     <div>
-                        <p class="text-xs text-slate-400 font-bold">الطلاب الحاجزين لرحلة اليوم</p>
-                        <h3 id="sup-stat-students" class="text-3xl font-black text-brand-primary mt-1">3 / 50 طالب</h3>
+                        <p class="text-xs text-slate-400 font-bold">الطلاب المسجلين بالخط</p>
+                        <h3 id="sup-stat-total-students" class="text-3xl font-black text-brand-primary mt-1">0</h3>
                     </div>
                     <span class="text-4xl">👥</span>
                 </div>
                 <div class="glass-card p-6 rounded-2xl flex items-center justify-between shadow-sm">
                     <div>
-                        <p class="text-xs text-slate-400 font-bold">الرحلة وميعاد التحرك</p>
-                        <h3 class="text-lg font-black text-[#2ECC71] mt-1">ذهاب - 07:30 صباحاً</h3>
+                        <p class="text-xs text-slate-400 font-bold">حضور الذهاب (Outbound)</p>
+                        <h3 id="sup-stat-outbound-boarded" class="text-3xl font-black text-emerald-500 mt-1">0</h3>
                     </div>
-                    <span class="text-4xl">🏁</span>
+                    <span class="text-4xl">🚍</span>
                 </div>
                 <div class="glass-card p-6 rounded-2xl flex items-center justify-between shadow-sm">
                     <div>
-                        <p class="text-xs text-slate-400 font-bold">طراز الباص الحالي</p>
-                        <h3 class="text-sm font-black mt-1">مرسيدس MCV السياحي</h3>
+                        <p class="text-xs text-slate-400 font-bold">حضور العودة (Return)</p>
+                        <h3 id="sup-stat-return-boarded" class="text-3xl font-black text-blue-500 mt-1">0</h3>
                     </div>
-                    <span class="text-4xl">🚌</span>
+                    <span class="text-4xl">🏁</span>
                 </div>
             </div>
 
+            <!-- Passenger Manifest & Boarding Log -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Trip route timeline -->
-                <div class="glass-card p-6 rounded-2xl space-y-4 shadow-sm">
-                    <h3 class="font-bold text-sm border-b border-slate-200 dark:border-slate-800 pb-3">مسار ونقاط تجمع الرحلة</h3>
-                    <div class="space-y-6 relative border-r-2 border-slate-200 dark:border-slate-800 mr-4 pr-6">
-                        <div class="relative">
-                            <span class="absolute -right-[31px] top-1 w-4 h-4 rounded-full bg-[#0B5DAA]"></span>
-                            <p class="text-xs font-black">موقف الفريال (نقطة الانطلاق)</p>
-                            <p class="text-[10px] text-slate-400">حضور: 25 طالب | الموعد المتوقع: 07:30 ص</p>
-                        </div>
-                        <div class="relative">
-                            <span class="absolute -right-[31px] top-1 w-4 h-4 rounded-full bg-[#6AB9FF]"></span>
-                            <p class="text-xs font-black">شارع السادات</p>
-                            <p class="text-[10px] text-slate-400">حضور: 12 طالب | الموعد المتوقع: 07:45 ص</p>
-                        </div>
-                        <div class="relative">
-                            <span class="absolute -right-[31px] top-1 w-4 h-4 rounded-full bg-emerald-500"></span>
-                            <p class="text-xs font-black">مقر الجامعة الأهلية (محطة الوصول)</p>
-                            <p class="text-[10px] text-slate-400">موعد الوصول التقديري: 08:30 ص</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Supervisor Students -->
-                <div class="lg:col-span-2 glass-card rounded-2xl overflow-hidden shadow-sm">
-                    <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <h3 class="font-bold text-sm">كشف حضور الطلاب وحجوزات اليوم</h3>
+                <!-- Passenger Manifest -->
+                <div class="lg:col-span-2 glass-card rounded-3xl overflow-hidden shadow-sm">
+                    <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                        <h3 class="font-black text-sm">كشف ركاب الرحلة (Passenger Manifest)</h3>
                         <div class="flex items-center gap-2">
-                            <input type="text" oninput="filterSupervisorStudents(this.value)" placeholder="ابحث باسم الطالب..." class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-brand-primary">
-                            <button onclick="scanQRModal()" class="bg-brand-primary hover:bg-[#6AB9FF] hover:text-[#081B33] text-white text-xs px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1.5 shadow-sm fast-transition border-0 cursor-pointer"><i class="fa-solid fa-qrcode"></i> مسح كود QR</button>
+                            <input type="text" oninput="filterSupervisorManifest(this.value)" placeholder="بحث باسم الطالب أو الهاتف..." class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-brand-primary">
+                            <button onclick="loadSupervisorTripStudents()" class="text-xs text-brand-primary font-bold hover:underline bg-transparent border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i></button>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
@@ -528,21 +640,32 @@
                                     <th class="p-4">اسم الطالب</th>
                                     <th class="p-4">نقطة الركوب</th>
                                     <th class="p-4">رقم الهاتف</th>
-                                    <th class="p-4">الحالة بالكشف</th>
-                                    <th class="p-4 text-center">تأكيد الركوب</th>
+                                    <th class="p-4">الذهاب</th>
+                                    <th class="p-4">العودة</th>
                                 </tr>
                             </thead>
-                            <tbody id="supervisor-student-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <!-- Render dynamically -->
+                            <tbody id="supervisor-manifest-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                <tr><td colspan="5" class="p-6 text-center text-slate-400">اختر رحلة لعرض كشف الركاب</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- Recent Boarding Logs for Trip -->
+                <div class="glass-card rounded-3xl overflow-hidden shadow-sm">
+                    <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                        <h3 class="font-black text-sm">سجل الصعود الموثق</h3>
+                        <button onclick="loadSupervisorTripRecords()" class="text-xs text-brand-primary font-bold hover:underline bg-transparent border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i></button>
+                    </div>
+                    <div class="p-4 space-y-3 max-h-[400px] overflow-y-auto" id="supervisor-records-list">
+                        <p class="text-xs text-slate-400 text-center py-6">لا توجد عمليات صعود مسجلة بعد</p>
                     </div>
                 </div>
             </div>
         </section>
 
 
-        <!-- ================= 6) CEO DASHBOARD ================= -->
+        <!-- ================= 7) CEO DASHBOARD ================= -->
         <section id="ceo-view" class="hidden min-h-[600px] flex view-transition">
             <!-- Sidebar Navigation -->
             <aside class="w-64 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col shrink-0">
@@ -550,128 +673,119 @@
                     <h3 class="text-xl font-black text-[#0B5DAA] tracking-wider poppins leading-loose">RAHAAL</h3>
                     <p class="text-[10px] text-slate-400 font-bold mt-1">لوحة الإدارة التنفيذية لرحال</p>
                 </div>
-                <nav class="flex-1 p-4 space-y-1">
+                <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
                     <button onclick="switchCeoTab('ceo-main', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all bg-brand-primary text-white border-0 text-right cursor-pointer">
                         <i class="fa-solid fa-chart-simple text-center w-4"></i>
                         <span>لوحة الإحصائيات</span>
                     </button>
-                    <button onclick="switchCeoTab('ceo-students', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
+                    <button onclick="switchCeoTab('ceo-users', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
                         <i class="fa-solid fa-users text-center w-4"></i>
-                        <span>إدارة الطلاب</span>
+                        <span>إدارة المستخدمين والطلاب</span>
                     </button>
                     <button onclick="switchCeoTab('ceo-supervisors', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
                         <i class="fa-solid fa-user-shield text-center w-4"></i>
                         <span>إدارة المشرفين</span>
                     </button>
+                    <button onclick="switchCeoTab('ceo-universities', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
+                        <i class="fa-solid fa-graduation-cap text-center w-4"></i>
+                        <span>إدارة الجامعات</span>
+                    </button>
                     <button onclick="switchCeoTab('ceo-buses', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
                         <i class="fa-solid fa-bus text-center w-4"></i>
-                        <span>إدارة الباصات</span>
+                        <span>أسطول الحافلات</span>
+                    </button>
+                    <button onclick="switchCeoTab('ceo-stations', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
+                        <i class="fa-solid fa-location-dot text-center w-4"></i>
+                        <span>المحطات ونقاط التجمع</span>
+                    </button>
+                    <button onclick="switchCeoTab('ceo-routes', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
+                        <i class="fa-solid fa-route text-center w-4"></i>
+                        <span>خطوط السير والمحطات</span>
                     </button>
                     <button onclick="switchCeoTab('ceo-trips', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
-                        <i class="fa-solid fa-route text-center w-4"></i>
-                        <span>إنشاء وتعديل رحلة</span>
+                        <i class="fa-solid fa-clock text-center w-4"></i>
+                        <span>جدولة الرحلات اليومية</span>
                     </button>
-                    <button onclick="switchCeoTab('ceo-gatherings', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
-                        <i class="fa-solid fa-location-dot text-center w-4"></i>
-                        <span>أماكن التجمع</span>
+                    <button onclick="switchCeoTab('ceo-payments', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
+                        <i class="fa-solid fa-credit-card text-center w-4"></i>
+                        <span>مراجعة وتأكيد المدفوعات</span>
+                    </button>
+                    <button onclick="switchCeoTab('ceo-plans', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
+                        <i class="fa-solid fa-ticket text-center w-4"></i>
+                        <span>باقات الاشتراكات</span>
+                    </button>
+                    <button onclick="switchCeoTab('ceo-boarding', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
+                        <i class="fa-solid fa-clipboard-check text-center w-4"></i>
+                        <span>سجل الصعود العام</span>
                     </button>
                 </nav>
             </aside>
 
             <!-- Dashboard Main Content Panel -->
-            <div class="flex-1 p-8 space-y-8 overflow-y-auto">
+            <div class="flex-1 p-8 space-y-8 overflow-y-auto max-h-screen">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
                     <div>
                         <h1 class="text-2xl font-black">نظام إدارة العمليات الكبرى</h1>
-                        <p class="text-xs text-slate-400">راقب ونظم حركة الأسطول والاشتراكات للطلاب بكل سهولة.</p>
-                    </div>
-                    
-                    <div class="flex items-center gap-3 w-full sm:w-auto">
-                        <button onclick="exportTo('Excel')" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm fast-transition border-0 cursor-pointer">
-                            <i class="fa-solid fa-file-excel"></i> تصدير Excel
-                        </button>
+                        <p class="text-xs text-slate-400">راقب ونظم حركة الأسطول والاشتراكات والمدفوعات مباشرة عبر الـ Backend.</p>
                     </div>
                 </div>
 
-                <!-- Subview 1: Main Stats View -->
+                <!-- SUBVIEW 1: Main Overview & Stats -->
                 <div id="ceo-main-view" class="ceo-subview space-y-8">
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div class="glass-card p-6 rounded-2xl">
-                            <p class="text-xs text-slate-400 font-bold">إجمالي طلاب رحال</p>
-                            <h3 id="stat-ceo-students-count" class="text-3xl font-black text-brand-primary mt-1">4</h3>
+                            <p class="text-xs text-slate-400 font-bold">إجمالي المستخدمين</p>
+                            <h3 id="stat-ceo-users-count" class="text-3xl font-black text-brand-primary mt-1">0</h3>
                         </div>
                         <div class="glass-card p-6 rounded-2xl">
-                            <p class="text-xs text-slate-400 font-bold">عدد المشرفين</p>
-                            <h3 id="stat-ceo-sups-count" class="text-3xl font-black text-brand-primary mt-1">2</h3>
+                            <p class="text-xs text-slate-400 font-bold">عدد الحافلات بالأسطول</p>
+                            <h3 id="stat-ceo-buses-count" class="text-3xl font-black text-brand-primary mt-1">0</h3>
                         </div>
                         <div class="glass-card p-6 rounded-2xl">
-                            <p class="text-xs text-slate-400 font-bold">عدد باصات الأسطول</p>
-                            <h3 id="stat-ceo-buses-count" class="text-3xl font-black text-[#0B5DAA] mt-1">3</h3>
+                            <p class="text-xs text-slate-400 font-bold">الرحلات المجدولة</p>
+                            <h3 id="stat-ceo-trips-count" class="text-3xl font-black text-[#0B5DAA] mt-1">0</h3>
                         </div>
                         <div class="glass-card p-6 rounded-2xl">
-                            <p class="text-xs text-slate-400 font-bold">رحلات اليوم</p>
-                            <h3 class="text-3xl font-black text-emerald-500 mt-1">24</h3>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div class="glass-card p-6 rounded-2xl space-y-4">
-                            <h3 class="font-bold text-sm">توزيع طلاب الجامعات</h3>
-                            <div class="flex items-center justify-center h-48">
-                                <svg class="w-40 h-40 transform -rotate-90" viewBox="0 0 32 32">
-                                    <circle r="16" cx="16" cy="16" fill="transparent" stroke="#0B5DAA" stroke-width="32" stroke-dasharray="65 100" />
-                                    <circle r="16" cx="16" cy="16" fill="transparent" stroke="#6AB9FF" stroke-width="32" stroke-dasharray="35 100" stroke-dashoffset="-65" />
-                                </svg>
-                            </div>
-                            <div class="flex justify-center gap-6 text-xs font-bold">
-                                <div class="flex items-center gap-1.5"><span class="w-3 h-3 bg-[#0B5DAA] rounded"></span> 65% أسيوط الأهلية</div>
-                                <div class="flex items-center gap-1.5"><span class="w-3 h-3 bg-[#6AB9FF] rounded"></span> 35% جامعة سفنكس</div>
-                            </div>
-                        </div>
-
-                        <div class="glass-card p-6 rounded-2xl space-y-4">
-                            <h3 class="font-bold text-sm">حجم حركة الحجوزات اليومية</h3>
-                            <div class="h-48 flex items-end justify-between gap-2 px-4 border-b border-slate-200 dark:border-slate-800 pb-2">
-                                <div class="w-8 bg-[#0B5DAA] rounded-t" style="height: 80%;"></div>
-                                <div class="w-8 bg-[#0B5DAA] rounded-t" style="height: 90%;"></div>
-                                <div class="w-8 bg-[#0B5DAA] rounded-t" style="height: 75%;"></div>
-                                <div class="w-8 bg-[#0B5DAA] rounded-t" style="height: 85%;"></div>
-                                <div class="w-8 bg-[#6AB9FF] rounded-t" style="height: 40%;"></div>
-                            </div>
-                            <div class="flex justify-between text-[10px] font-bold text-slate-400 px-2">
-                                <span>الأحد</span><span>الإثنين</span><span>الثلاثاء</span><span>الأربعاء</span><span>الخميس</span>
-                            </div>
+                            <p class="text-xs text-slate-400 font-bold">الاشتراكات النشطة</p>
+                            <h3 id="stat-ceo-subs-count" class="text-3xl font-black text-emerald-500 mt-1">0</h3>
                         </div>
                     </div>
                 </div>
 
-                <!-- Subview 2: Students List المطور بالكامل لعرض كل البيانات مع الأزرار الأربعة للتحكم والاعتماد -->
-                <div id="ceo-students-view" class="ceo-subview hidden space-y-6">
+                <!-- SUBVIEW 2: Users Management -->
+                <div id="ceo-users-view" class="ceo-subview hidden space-y-6">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <h3 class="font-bold text-lg">إدارة واعتماد حسابات الطلاب</h3>
+                        <h3 class="font-bold text-lg">إدارة واعتماد حسابات المستخدمين والطلاب</h3>
                         <div class="flex gap-2">
-                            <input type="text" oninput="searchStudentsTable(this.value)" placeholder="ابحث باسم الطالب..." class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-brand-primary">
+                            <select id="ceo-users-role-filter" onchange="loadCeoUsers()" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                                <option value="">كل الرتب (All Roles)</option>
+                                <option value="STUDENT">طالب (STUDENT)</option>
+                                <option value="SUPERVISOR">مشرف (SUPERVISOR)</option>
+                                <option value="CEO">المدير التنفيذي (CEO)</option>
+                            </select>
+                            <button onclick="loadCeoUsers()" class="btn-gradient text-white px-3 py-2 text-xs rounded-xl font-bold border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
                         </div>
                     </div>
                     <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
                         <table class="w-full text-right text-xs">
                             <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
                                 <tr>
-                                    <th class="p-4">اسم الطالب</th>
-                                    <th class="p-4">الجامعة</th>
+                                    <th class="p-4">الاسم</th>
                                     <th class="p-4">رقم الهاتف</th>
+                                    <th class="p-4">الرتبة</th>
                                     <th class="p-4">الحالة</th>
-                                    <th class="p-4 text-center">العمليات والتحكم بالحساب</th>
+                                    <th class="p-4">تأكيد الهاتف</th>
+                                    <th class="p-4 text-center">العمليات</th>
                                 </tr>
                             </thead>
-                            <tbody id="ceo-students-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <!-- Dynamic Rows -->
+                            <tbody id="ceo-users-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                <tr><td colspan="6" class="p-6 text-center text-slate-400">جاري تحميل المستخدمين...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- Subview 3: Supervisors List -->
+                <!-- SUBVIEW 3: Supervisors Management -->
                 <div id="ceo-supervisors-view" class="ceo-subview hidden space-y-6">
                     <div class="flex justify-between items-center">
                         <h3 class="font-bold text-lg">كادر مشرفي الرحلات بـ رحال</h3>
@@ -681,100 +795,200 @@
                         <table class="w-full text-right text-xs">
                             <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
                                 <tr>
-                                    <th class="p-4">اسم المشرف بالكامل</th>
-                                    <th class="p-4">رقم هاتف المشرف</th>
-                                    <th class="p-4">خط السير والرحلة المكلف بها</th>
+                                    <th class="p-4">اسم المشرف</th>
+                                    <th class="p-4">رقم الهاتف</th>
+                                    <th class="p-4">الجنس</th>
+                                    <th class="p-4">الحالة</th>
                                     <th class="p-4 text-center">التحكم</th>
                                 </tr>
                             </thead>
                             <tbody id="ceo-supervisors-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <!-- Dynamic Rows -->
+                                <tr><td colspan="5" class="p-6 text-center text-slate-400">جاري تحميل المشرفين...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- Subview 4: Buses List -->
+                <!-- SUBVIEW 4: Universities Management -->
+                <div id="ceo-universities-view" class="ceo-subview hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-lg">الجامعات المعتمدة بنظام رحال</h3>
+                        <button onclick="openAddUniversityModal()" class="btn-gradient text-white px-4 py-2 text-xs flex items-center gap-1.5 rounded-xl hover:scale-105 active:scale-95 fast-transition shadow-sm font-bold border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> إضافة جامعة جديدة</button>
+                    </div>
+                    <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                <tr>
+                                    <th class="p-4">اسم الجامعة</th>
+                                    <th class="p-4">الحالة التشغيلية</th>
+                                    <th class="p-4">تاريخ الإضافة</th>
+                                    <th class="p-4 text-center">العمليات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ceo-universities-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                <tr><td colspan="4" class="p-6 text-center text-slate-400">جاري تحميل الجامعات...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SUBVIEW 5: Buses Fleet -->
                 <div id="ceo-buses-view" class="ceo-subview hidden space-y-6">
                     <div class="flex justify-between items-center">
                         <h3 class="font-bold text-lg">أسطول باصات وحافلات رحال</h3>
                         <button onclick="openAddBusModal()" class="btn-gradient text-white px-4 py-2 text-xs flex items-center gap-1.5 rounded-xl hover:scale-105 active:scale-95 fast-transition shadow-sm font-bold border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> إضافة باص جديد</button>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="ceo-buses-grid">
-                        <!-- Dynamic Bus Cards -->
+                        <div class="col-span-3 text-center py-10 text-slate-400">جاري تحميل أسطول الباصات...</div>
                     </div>
                 </div>
 
-                <!-- Subview 5: Trip/Route Creator المطور والمحدّث لتحديد خط السير بـ (من، إلى، الساعة) -->
-                <div id="ceo-trips-view" class="ceo-subview hidden space-y-6">
-                    <h3 class="font-bold text-lg">إنشاء وتعديل خط سير جديد</h3>
-                    <div class="glass-card p-8 rounded-3xl max-w-2xl mx-auto space-y-6 shadow-sm">
-                        <form onsubmit="handleCreateTripSubmit(event)" class="space-y-4">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <!-- الخانة: من (مكان الانطلاق) -->
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-400 mb-1.5">من (مكان الانطلاق والتجمع)</label>
-                                    <input type="text" id="trip-from" required placeholder="مثال: موقف الفريال" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
-                                </div>
-                                <!-- الخانة: إلى (الوجهة) -->
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-400 mb-1.5">إلى (الوجهة / الجامعة)</label>
-                                    <input type="text" id="trip-to" required placeholder="مثال: جامعة أسيوط الأهلية" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
-                                </div>
-                            </div>
-                            <!-- الخانة: الساعة -->
-                            <div>
-                                <label class="block text-xs font-bold text-slate-400 mb-1.5">الساعة (موعد التحرك)</label>
-                                <input type="text" id="trip-time" required placeholder="مثال: 07:30 صباحاً" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-400 mb-1.5">الحافلة المخصصة للخط</label>
-                                <select id="trip-bus" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none">
-                                    <option>مرسيدس MCV 600 - لوحة (أ ج ص 124)</option>
-                                    <option>تويوتا كوستر - لوحة (ق ط س 459)</option>
-                                    <option>يوتونج فاخر - لوحة (ر م ب 963)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-400 mb-1.5">المشرف المسؤول</label>
-                                <select id="trip-supervisor" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none">
-                                    <option>أ/ محمد رأفت</option>
-                                    <option>أ/ عادل كمال</option>
-                                </select>
-                            </div>
-                            <button type="submit" class="w-full btn-gradient py-4 text-xs font-black rounded-xl text-white hover:scale-[1.01] active:scale-95 fast-transition shadow-md border-0 cursor-pointer">حفظ وإتاحة خط السير للطلاب فوراً</button>
-                        </form>
+                <!-- SUBVIEW 6: Stations Management -->
+                <div id="ceo-stations-view" class="ceo-subview hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-lg">المحطات ونقاط التجمع بأسيوط</h3>
+                        <button onclick="openAddStationModal()" class="btn-gradient text-white px-4 py-2 text-xs flex items-center gap-1.5 rounded-xl hover:scale-105 active:scale-95 fast-transition shadow-sm font-bold border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> إضافة محطة جديدة</button>
                     </div>
-                </div>
-
-                <!-- Subview 6: Gatherings View -->
-                <div id="ceo-gatherings-view" class="ceo-subview hidden space-y-6">
-                    <h3 class="font-bold text-lg">أماكن ومحطات التجمع الحالية بأسيوط</h3>
                     <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
                         <table class="w-full text-right text-xs">
                             <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
                                 <tr>
-                                    <th class="p-4">اسم المحطة ونقطة التجمع</th>
-                                    <th class="p-4">وقت مرور الباص المتوقع</th>
-                                    <th class="p-4 text-center">إجمالي عدد الطلاب المسجلين بالخط</th>
+                                    <th class="p-4">اسم المحطة</th>
+                                    <th class="p-4">كود المحطة</th>
+                                    <th class="p-4">العنوان</th>
+                                    <th class="p-4">الحالة</th>
+                                    <th class="p-4 text-center">العمليات</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
-                                    <td class="p-4 font-bold">موقف الفريال</td>
-                                    <td class="p-4 font-mono font-bold">07:30 AM</td>
-                                    <td class="p-4 text-center font-bold text-slate-600 dark:text-slate-300">340 طالب وطالبة</td>
+                            <tbody id="ceo-stations-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                <tr><td colspan="5" class="p-6 text-center text-slate-400">جاري تحميل المحطات...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SUBVIEW 7: Routes & Stops Management -->
+                <div id="ceo-routes-view" class="ceo-subview hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-lg">خطوط السير ونقاط التوقف</h3>
+                        <button onclick="openAddRouteModal()" class="btn-gradient text-white px-4 py-2 text-xs flex items-center gap-1.5 rounded-xl hover:scale-105 active:scale-95 fast-transition shadow-sm font-bold border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> إنشاء خط سير جديد</button>
+                    </div>
+                    <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                <tr>
+                                    <th class="p-4">رقم واسم الخط</th>
+                                    <th class="p-4">الانطلاق ← الوجهة</th>
+                                    <th class="p-4">المسافة / الزمن</th>
+                                    <th class="p-4">المشرف المعين</th>
+                                    <th class="p-4">الحالة</th>
+                                    <th class="p-4 text-center">العمليات</th>
                                 </tr>
-                                <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
-                                    <td class="p-4 font-bold">موقف الأزهر</td>
-                                    <td class="p-4 font-mono font-bold">07:45 AM</td>
-                                    <td class="p-4 text-center font-bold text-slate-600 dark:text-slate-300">280 طالب وطالبة</td>
+                            </thead>
+                            <tbody id="ceo-routes-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                <tr><td colspan="6" class="p-6 text-center text-slate-400">جاري تحميل خطوط السير...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SUBVIEW 8: Trips Scheduling -->
+                <div id="ceo-trips-view" class="ceo-subview hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-lg">جدولة ومواعيد الرحلات اليومية</h3>
+                        <button onclick="openAddTripModal()" class="btn-gradient text-white px-4 py-2 text-xs flex items-center gap-1.5 rounded-xl hover:scale-105 active:scale-95 fast-transition shadow-sm font-bold border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> جدولة رحلة جديدة</button>
+                    </div>
+                    <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                <tr>
+                                    <th class="p-4">خط السير</th>
+                                    <th class="p-4">الحافلة</th>
+                                    <th class="p-4">المشرف</th>
+                                    <th class="p-4">توقيت المغادرة</th>
+                                    <th class="p-4">السعر</th>
+                                    <th class="p-4">الحالة</th>
+                                    <th class="p-4 text-center">العمليات</th>
                                 </tr>
-                                <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
-                                    <td class="p-4 font-bold">شارع السادات</td>
-                                    <td class="p-4 font-mono font-bold">08:00 AM</td>
-                                    <td class="p-4 text-center font-bold text-slate-600 dark:text-slate-300">190 طالب وطالبة</td>
+                            </thead>
+                            <tbody id="ceo-trips-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                <tr><td colspan="7" class="p-6 text-center text-slate-400">جاري تحميل جدول الرحلات...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SUBVIEW 9: Payments Verification -->
+                <div id="ceo-payments-view" class="ceo-subview hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-lg">مراجعة وتأكيد مدفوعات الطلاب</h3>
+                        <button onclick="loadCeoPayments()" class="btn-gradient text-white px-3 py-2 text-xs rounded-xl font-bold border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
+                    </div>
+                    <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                <tr>
+                                    <th class="p-4">رقم الدفع</th>
+                                    <th class="p-4">الطالب</th>
+                                    <th class="p-4">المبلغ</th>
+                                    <th class="p-4">الطريقة</th>
+                                    <th class="p-4">رقم التحويل</th>
+                                    <th class="p-4">الحالة</th>
+                                    <th class="p-4 text-center">الإجراء المالي</th>
                                 </tr>
+                            </thead>
+                            <tbody id="ceo-payments-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                <tr><td colspan="7" class="p-6 text-center text-slate-400">جاري تحميل المدفوعات...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SUBVIEW 10: Subscription Plans -->
+                <div id="ceo-plans-view" class="ceo-subview hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-lg">باقات اشتراكات الطلاب</h3>
+                        <button onclick="openAddPlanModal()" class="btn-gradient text-white px-4 py-2 text-xs flex items-center gap-1.5 rounded-xl hover:scale-105 active:scale-95 fast-transition shadow-sm font-bold border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> إضافة باقة جديدة</button>
+                    </div>
+                    <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                <tr>
+                                    <th class="p-4">اسم الباقة</th>
+                                    <th class="p-4">النوع</th>
+                                    <th class="p-4">المدة (بالأيام)</th>
+                                    <th class="p-4">السعر</th>
+                                    <th class="p-4">الحالة</th>
+                                    <th class="p-4 text-center">العمليات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ceo-plans-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                <tr><td colspan="6" class="p-6 text-center text-slate-400">جاري تحميل باقات الاشتراكات...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SUBVIEW 11: All Boarding Records -->
+                <div id="ceo-boarding-view" class="ceo-subview hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-lg">سجل الصعود وتأكيد الحضور العام بالنظام</h3>
+                        <button onclick="loadCeoBoardingRecords()" class="btn-gradient text-white px-3 py-2 text-xs rounded-xl font-bold border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
+                    </div>
+                    <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                <tr>
+                                    <th class="p-4">الطالب</th>
+                                    <th class="p-4">الرحلة</th>
+                                    <th class="p-4">المشرف</th>
+                                    <th class="p-4">الاتجاه</th>
+                                    <th class="p-4">نقطة الركوب</th>
+                                    <th class="p-4">توقيت الصعود</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ceo-boarding-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                <tr><td colspan="6" class="p-6 text-center text-slate-400">جاري تحميل سجل الصعود العام...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -785,31 +999,57 @@
 
     </main>
 
-    <!-- فوتر الموقع الرسمي لشركة رحال -->
-    <footer class="border-t border-slate-200/50 dark:border-slate-800/50 py-8 text-center text-xs text-slate-400 bg-white dark:bg-[#081B33] relative z-20">
+     
+    <footer class="border-t border-slate-200/50 dark:border-slate-800/50 py-8 text-center text-xs text-slate-400 bg-[#081B33] relative z-20">
         <div class="max-w-7xl mx-auto px-4 space-y-3">
-            <div class="flex justify-center gap-6 text-sm">
-                <button onclick="showToast('تابعوا صفحتنا على فيسبوك قريباً لتحديثات الخطوط', 'info')" class="hover:text-brand-primary fast-transition bg-transparent border-0 cursor-pointer text-slate-400"><i class="fa-brands fa-facebook"></i></button>
-                <button onclick="showToast('يمكنكم التواصل معنا على الرقم الموحد: 01011223344', 'info')" class="hover:text-brand-primary fast-transition bg-transparent border-0 cursor-pointer text-slate-400"><i class="fa-brands fa-whatsapp"></i></button>
-                <button onclick="showToast('البريد الإلكتروني للشكاوى: complaints@rahaal-bus.com', 'info')" class="hover:text-brand-primary fast-transition bg-transparent border-0 cursor-pointer text-slate-400"><i class="fa-regular fa-envelope"></i></button>
+            <div class="flex justify-center gap-3 text-sm">
+                <a href="" class="fs-3 hover:text-brand-primary fast-transition bg-transparent border-0 cursor-pointer text-slate-400"><i class="fa-brands fa-square-facebook"></i></a>
+                <a href="" class="fs-3 hover:text-brand-primary fast-transition bg-transparent border-0 cursor-pointer text-slate-400"><i class="fa-brands fa-whatsapp"></i></a>
+                <a href="" class="fs-3 hover:text-brand-primary fast-transition bg-transparent border-0 cursor-pointer text-slate-400"><i class="fa-brands fa-instagram"></i></a>
             </div>
-            <p>© <span class="poppins">2026</span> رحال (RAHAAL) للنقل الجامعي. جميع الحقوق محفوظة لطلاب أسيوط الأهلية وجامعة سفنكس.</p>
+            <p>© <span class="poppins">2026</span> رحال (RAHAAL) للنقل الجامعي. منصة النقل الذكية المتكاملة.</p>
         </div>
     </footer>
 
 
-    <!-- ================= VIEW STUDENT DETAILS MODAL ================= -->
-    <div id="view-student-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
-        <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-5 shadow-2xl animate-[fadeIn_0.12s_ease-out]">
+    <!-- ================= MODALS ================= -->
+
+    <!-- 1. API Config / Server Settings Modal -->
+    <div id="api-config-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
-                <h3 class="font-bold text-md text-brand-primary dark:text-[#6AB9FF]">الملف الدراسي وحالة اشتراك الطالب الكاملة</h3>
-                <button onclick="closeModal('view-student-modal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-bold bg-transparent border-0 cursor-pointer">×</button>
+                <h3 class="font-bold text-md text-brand-primary dark:text-[#6AB9FF]">إعدادات اتصال الـ Backend API</h3>
+                <button onclick="closeModal('api-config-modal')" class="text-slate-400 hover:text-slate-200 text-xl font-bold bg-transparent border-0 cursor-pointer">×</button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">Backend Base URL</label>
+                    <input type="text" id="cfg-base-url" placeholder="http://localhost:8000/api/v1" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-mono focus:outline-none focus:border-brand-primary">
+                </div>
+                <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl space-y-1">
+                    <p class="text-[11px] font-bold text-slate-400">فحص الاتصال (Health Check):</p>
+                    <p id="cfg-health-status" class="text-xs font-mono text-slate-500">لم يتم الفحص بعد</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="testApiHealth()" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">اختبار الاتصال</button>
+                <button onclick="saveApiConfig()" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ العنوان</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. View User Details Modal (CEO) -->
+    <div id="view-student-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-5 shadow-2xl animate-[fadeIn_0.12s_ease-out] max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+                <h3 class="font-bold text-md text-brand-primary dark:text-[#6AB9FF]">تفاصيل ملف المستخدم والكارنيه</h3>
+                <button onclick="closeModal('view-student-modal')" class="text-slate-400 hover:text-slate-200 text-xl font-bold bg-transparent border-0 cursor-pointer">×</button>
             </div>
             
             <div class="space-y-4 text-xs">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <p class="text-slate-400 font-bold">الاسم ثلاثي</p>
+                        <p class="text-slate-400 font-bold">الاسم الكامل</p>
                         <p id="det-name" class="font-black text-slate-800 dark:text-white mt-1"></p>
                     </div>
                     <div>
@@ -817,78 +1057,354 @@
                         <p id="det-phone" class="font-mono font-bold text-slate-800 dark:text-white mt-1"></p>
                     </div>
                     <div>
-                        <p class="text-slate-400 font-bold">الجامعة</p>
-                        <p id="det-uni" class="font-bold text-slate-800 dark:text-white mt-1"></p>
+                        <p class="text-slate-400 font-bold">الرتبة (Role)</p>
+                        <p id="det-role" class="font-bold text-slate-800 dark:text-white mt-1"></p>
                     </div>
                     <div>
                         <p class="text-slate-400 font-bold">الجنس</p>
                         <p id="det-gender" class="font-bold text-slate-800 dark:text-white mt-1"></p>
                     </div>
-                </div>
-
-                <div class="border-t border-slate-200 dark:border-slate-800 pt-3 space-y-2">
-                    <p class="text-slate-400 font-bold">موقع ومواعيد حجز ركوب الطالب النشط:</p>
-                    <div class="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
-                        <p><strong>تجمع الذهاب:</strong> <span id="det-pickup" class="font-bold"></span></p>
-                        <p><strong>وقت الذهاب:</strong> <span id="det-gotime" class="font-bold"></span></p>
-                        <p><strong>تجمع العودة:</strong> <span id="det-returnpickup" class="font-bold"></span></p>
-                        <p><strong>وقت العودة:</strong> <span id="det-returntime" class="font-bold"></span></p>
+                    <div>
+                        <p class="text-slate-400 font-bold">الكلية والفرقة</p>
+                        <p id="det-faculty" class="font-bold text-slate-800 dark:text-white mt-1"></p>
+                    </div>
+                    <div>
+                        <p class="text-slate-400 font-bold">حالة تفعيل الهاتف</p>
+                        <p id="det-phone-verified" class="font-bold text-slate-800 dark:text-white mt-1"></p>
                     </div>
                 </div>
 
                 <div class="border-t border-slate-200 dark:border-slate-800 pt-3">
-                    <p class="text-slate-400 font-bold mb-2">صورة الكارنيه المرفوعة للتوثيق والتدقيق:</p>
-                    <div class="w-full h-24 bg-slate-100 dark:bg-slate-900 rounded-2xl flex items-center justify-center border border-slate-200 dark:border-slate-800 overflow-hidden relative">
-                        <div class="absolute inset-0 bg-gradient-to-r from-brand-primary/10 to-brand-secondary/10 flex flex-col items-center justify-center text-center p-4">
-                            <i class="fa-solid fa-id-card text-2xl text-brand-primary mb-1"></i>
-                            <span class="font-bold font-mono text-[9px]" id="det-card-text">PREVIEW_BADGE_STUDENT</span>
-                            <span class="text-[8px] text-slate-400 mt-1">كارنيه جامعي معتمد - ختم وزارة التعليم العالي والبحث العلمي</span>
-                        </div>
+                    <p class="text-slate-400 font-bold mb-2">صورة الكارنيه الجامعي المرفوعة:</p>
+                    <div id="det-card-container" class="w-full h-44 bg-slate-100 dark:bg-slate-900 rounded-2xl flex items-center justify-center border border-slate-200 dark:border-slate-800 overflow-hidden relative">
+                        <img id="det-card-img" src="" alt="Student ID Card" class="w-full h-full object-contain hidden">
+                        <p id="det-card-fallback" class="text-xs text-slate-400">جاري تحميل صورة الكارنيه...</p>
                     </div>
                 </div>
             </div>
 
-            <div class="flex gap-1.5 border-t border-slate-200 dark:border-slate-800 pt-3" id="det-modal-actions">
-                <!-- Inserted Dynamically depending on student id -->
+            <div class="flex gap-2 border-t border-slate-200 dark:border-slate-800 pt-3" id="det-modal-actions">
+                <!-- Inserted Dynamically -->
             </div>
         </div>
     </div>
 
-
-    <!-- ================= ADD SUPERVISOR MODAL ================= -->
+    <!-- 3. Add Supervisor Modal (CEO) -->
     <div id="add-supervisor-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
         <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
             <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">إضافة مشرف جديد لرحال</h3>
-            <div class="space-y-3">
-                <input type="text" id="new-sup-name" placeholder="اسم المشرف بالكامل" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary">
-                <input type="tel" id="new-sup-phone" placeholder="رقم هاتف المشرف" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary">
-                <input type="text" id="new-sup-route" placeholder="خط السير المخصص للمشرف" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary">
+            <form onsubmit="handleCreateSupervisorSubmit(event)" class="space-y-3">
+                <input type="text" id="new-sup-name" required placeholder="اسم المشرف بالكامل" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary">
+                <input type="tel" id="new-sup-phone" required placeholder="رقم هاتف المشرف (+20...)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary font-mono text-left">
+                <input type="password" id="new-sup-pass" minlength="8" required placeholder="كلمة المرور (8 خانات على الأقل)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary">
+                <select id="new-sup-gender" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary">
+                    <option value="MALE">ذكر</option>
+                    <option value="FEMALE">أنثى</option>
+                </select>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ وتسجيل المشرف</button>
+                    <button type="button" onclick="closeModal('add-supervisor-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. Add/Edit University Modal (CEO) -->
+    <div id="add-university-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">إضافة / تعديل جامعة</h3>
+            <form onsubmit="handleSaveUniversitySubmit(event)" class="space-y-3">
+                <input type="hidden" id="uni-edit-id" value="">
+                <input type="text" id="uni-name-input" required placeholder="اسم الجامعة (مثال: جامعة أسيوط الأهلية)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary">
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ الجامعة</button>
+                    <button type="button" onclick="closeModal('add-university-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 5. Add/Edit Bus Modal (CEO) -->
+    <div id="add-bus-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">إضافة / تعديل حافلة</h3>
+            <form onsubmit="handleSaveBusSubmit(event)" class="space-y-3">
+                <input type="hidden" id="bus-edit-id" value="">
+                <input type="text" id="new-bus-number" required placeholder="رقم الحافلة (مثال: BUS-101)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <input type="text" id="new-bus-plate" required placeholder="رقم اللوحة (مثال: أ ج ص 124)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <input type="number" id="new-bus-capacity" required placeholder="سعة الركاب (مثال: 50)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <input type="text" id="new-bus-model" placeholder="الموديل والماركة (مثال: Mercedes Travego)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <input type="number" id="new-bus-year" placeholder="سنة الصنع (مثال: 2024)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ الحافلة</button>
+                    <button type="button" onclick="closeModal('add-bus-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 6. Add/Edit Station Modal (CEO) -->
+    <div id="add-station-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">إضافة / تعديل محطة ونقطة تجمع</h3>
+            <form onsubmit="handleSaveStationSubmit(event)" class="space-y-3">
+                <input type="hidden" id="station-edit-id" value="">
+                <input type="text" id="station-name-input" required placeholder="اسم المحطة (مثال: موقف الفريال)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <input type="text" id="station-code-input" required placeholder="كود المحطة (مثال: ST-FERYAL-01)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <input type="text" id="station-address-input" placeholder="العنوان التفصيلي" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="number" step="0.0001" id="station-lat-input" required placeholder="Latitude (مثال: 27.1809)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                    <input type="number" step="0.0001" id="station-lng-input" required placeholder="Longitude (مثال: 31.1837)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ المحطة</button>
+                    <button type="button" onclick="closeModal('add-station-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 7. Add/Edit Route Modal (CEO) -->
+    <div id="add-route-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">إنشاء / تعديل خط سير</h3>
+            <form onsubmit="handleSaveRouteSubmit(event)" class="space-y-3">
+                <input type="hidden" id="route-edit-id" value="">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" id="route-number-input" required placeholder="رقم الخط (مثال: R-101)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                    <input type="text" id="route-name-input" required placeholder="اسم الخط (مثال: الفريال - الأهلية)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">محطة الانطلاق (Origin)</label>
+                        <select id="route-origin-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">محطة الوصول (Destination)</label>
+                        <select id="route-dest-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="number" step="0.1" id="route-dist-input" required placeholder="المسافة بالكيلومتر (مثال: 18.5)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                    <input type="number" id="route-dur-input" required placeholder="المدة بالدقائق (مثال: 35)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">المشرف المعين للخط (اختياري)</label>
+                    <select id="route-sup-select" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                        <option value="">بدون مشرف معين</option>
+                    </select>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ خط السير</button>
+                    <button type="button" onclick="closeModal('add-route-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 8. Manage Route Stops Modal (CEO) -->
+    <div id="route-stops-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+                <h3 class="font-bold text-md text-brand-primary dark:text-[#6AB9FF]" id="route-stops-title">محطات وتوقفات الخط</h3>
+                <button onclick="closeModal('route-stops-modal')" class="text-slate-400 hover:text-slate-200 text-xl font-bold bg-transparent border-0 cursor-pointer">×</button>
             </div>
-            <div class="flex gap-2">
-                <button onclick="saveNewSupervisor()" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ وحفظ المشرف</button>
-                <button onclick="closeModal('add-supervisor-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء الأمر</button>
+            
+            <!-- Add Stop Form -->
+            <form onsubmit="handleAddRouteStopSubmit(event)" class="flex gap-2 items-center bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl">
+                <input type="hidden" id="current-stops-route-id" value="">
+                <select id="new-stop-station-select" required class="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                <input type="number" id="new-stop-order" required placeholder="الترتيب (1, 2...)" class="w-24 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                <button type="submit" class="btn-gradient text-white px-4 py-2 text-xs font-bold rounded-xl border-0 cursor-pointer whitespace-nowrap">إضافة محطة</button>
+            </form>
+
+            <div class="space-y-2" id="route-stops-list">
+                <!-- Populated dynamically -->
             </div>
         </div>
     </div>
 
-    <!-- ================= ADD BUS MODAL ================= -->
-    <div id="add-bus-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+    <!-- 9. Add Scheduled Trip Modal (CEO) -->
+    <div id="add-trip-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">جدولة رحلة جديدة</h3>
+            <form onsubmit="handleCreateScheduledTripSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">خط السير</label>
+                    <select id="trip-route-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">الحافلة المخصصة</label>
+                        <select id="trip-bus-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">المشرف المسؤول</label>
+                        <select id="trip-supervisor-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">موعد المغادرة</label>
+                        <input type="datetime-local" id="trip-departure-input" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">موعد الوصول التقديري</label>
+                        <input type="datetime-local" id="trip-arrival-input" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">سعر التذكرة (Fare Amount EGP)</label>
+                        <input type="number" step="0.5" id="trip-fare-input" value="50.00" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">السعة (اختياري)</label>
+                        <input type="number" id="trip-capacity-input" placeholder="تلقائي حسب الباص" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                    </div>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ الرحلة وجدولتها</button>
+                    <button type="button" onclick="closeModal('add-trip-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 10. Add Subscription Plan Modal (CEO) -->
+    <div id="add-plan-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
         <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
-            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">إضافة باص جديد للأسطول</h3>
-            <div class="space-y-3">
-                <input type="text" id="new-bus-plate" placeholder="أرقام وحروف اللوحة (مثال: أ ج ص 124)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary">
-                <input type="number" id="new-bus-capacity" placeholder="سعة الركاب (مثال: 50)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary">
-                <input type="text" id="new-bus-type" placeholder="نوع وماركة الباص (مثال: مرسيدس MCV)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary">
-            </div>
-            <div class="flex gap-2">
-                <button onclick="saveNewBus()" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ وإدراج الحافلة</button>
-                <button onclick="closeModal('add-bus-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء الأمر</button>
-            </div>
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">إضافة باقة اشتراك جديدة</h3>
+            <form onsubmit="handleCreatePlanSubmit(event)" class="space-y-3">
+                <input type="text" id="plan-name-input" required placeholder="اسم الباقة (مثال: باقة الفصل الدراسي الكامل)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <select id="plan-type-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                    <option value="DAILY">يومي (DAILY)</option>
+                    <option value="MONTHLY">شهري (MONTHLY)</option>
+                    <option value="TERM">فصل دراسي (TERM)</option>
+                </select>
+                <input type="number" step="0.5" id="plan-price-input" required placeholder="السعر بالجنيه المصري (EGP)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <input type="number" id="plan-duration-input" placeholder="المدة بالأيام (اختياري: تلقائي 1 / 30 / 90)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ الباقة</button>
+                    <button type="button" onclick="closeModal('add-plan-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 11. Buy Subscription Modal (Student) -->
+    <div id="buy-subscription-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">شراء وتفعيل اشتراك مسار جامعي</h3>
+            <form onsubmit="handleBuySubscriptionSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">اختر خط السير</label>
+                    <select id="buy-sub-route-select" onchange="onBuySubRouteChange()" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">اختر باقة الاشتراك</label>
+                    <select id="buy-sub-plan-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">نقطة تجمع الذهاب (Outbound)</label>
+                        <select id="buy-sub-outbound-pickup" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">طريقة تحديد نقطة العودة</label>
+                        <select id="buy-sub-return-mode" onchange="toggleReturnPickupSelector()" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                            <option value="SAME_AS_OUTBOUND">نفس نقطة تجمع الذهاب</option>
+                            <option value="DIFFERENT">نقطة مختلفة</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="buy-sub-different-return-container" class="hidden">
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">نقطة تجمع العودة المخصصة</label>
+                    <select id="buy-sub-return-pickup" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">طريقة الدفع</label>
+                        <select id="buy-sub-pay-method" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                            <option value="CASH">نقدًا (مع المشرف)</option>
+                            <option value="VODAFONE_CASH">فودافون كاش (Vodafone Cash)</option>
+                            <option value="INSTAPAY">انستاباي (InstaPay)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">تاريخ البدء</label>
+                        <input type="date" id="buy-sub-start-date" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">رقم مرجع التحويل (إن وُجد للدفع الرقمي)</label>
+                    <input type="text" id="buy-sub-ref" placeholder="مثال: VC-123456789" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">تأكيد وشراء الاشتراك</button>
+                    <button type="button" onclick="closeModal('buy-subscription-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 12. Supervisor QR Scan / Validation Modal -->
+    <div id="supervisor-scan-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">تسجيل وتأكيد صعود الطالب بالـ QR</h3>
+            <form onsubmit="handleSupervisorScanSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">رمز الـ QR Token (من الماسح أو الإدخال اليدوي)</label>
+                    <textarea id="scan-qr-token-input" rows="3" required placeholder="الصق أو امسح كود الـ QR الخاص بالطالب..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-brand-primary"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">اتجاه الرحلة</label>
+                        <select id="scan-direction-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                            <option value="OUTBOUND">ذهاب (OUTBOUND)</option>
+                            <option value="RETURN">عودة (RETURN)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">نقطة الركوب الحالية</label>
+                        <select id="scan-pickup-point-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                    </div>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">تأكيد الركوب وتوثيق الحضور</button>
+                    <button type="button" onclick="closeModal('supervisor-scan-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 13. Submit Payment Proof Modal (Student) -->
+    <div id="submit-payment-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">إرسال إثبات التحويل المالي</h3>
+            <form onsubmit="handleSubmitPaymentProof(event)" class="space-y-3">
+                <input type="hidden" id="submit-pay-id" value="">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">رقم مرجع التحويل (Transaction Reference)</label>
+                    <input type="text" id="submit-pay-ref" required placeholder="مثال: IP-987654321 أو رقم المحفظة" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">ملاحظات التحويل (اختياري)</label>
+                    <textarea id="submit-pay-notes" rows="2" placeholder="تم التحويل من رقم 010xxxxxxxx" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs focus:outline-none"></textarea>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">إرسال للمراجعة</button>
+                    <button type="button" onclick="closeModal('submit-payment-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
+                </div>
+            </form>
         </div>
     </div>
 
 
     <!-- ================= JAVASCRIPT APPLICATION CODE ================= -->
-    <script src="script.js"></script>
+    <script src="./JS/config.js"></script>
+    <script src="./JS/api.js"></script>
+    <script src="./JS/script.js"></script>
+    <script src="./JS/bootstrap.bundle.min.js"></script>
 </body>
 </html>

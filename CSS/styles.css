@@ -62,3 +62,46 @@ th, td {
     line-height: 1.8;
     padding: 1.1rem 1.5rem !important;
 }
+
+.tr{
+    transition: 0.3s;
+}
+
+/* ============================================================
+   INTERSECTION OBSERVER & SCROLL REVEAL ANIMATIONS
+   ============================================================ */
+.scroll-reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+}
+
+.scroll-reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Stagger transition helpers inside containers */
+.stagger-container .scroll-reveal {
+    transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), 
+                transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), 
+                box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
+                border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Step cards hover & styling */
+.step-card {
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s;
+}
+.step-card:hover {
+    transform: translateY(-4px);
+}
+
+/* .stat-card {
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s;
+} */
+.stat-card:hover {
+    transform: translateY(-4px);
+}
+
