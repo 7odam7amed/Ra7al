@@ -1,13 +1,7 @@
-/**
- * RAHAAL - Frontend Configuration
- * Manages Base URL and Token storage with dynamic environment variable support.
- */
 
 const CONFIG = {
-    // Default Base URL matching the FastAPI backend specification
-    DEFAULT_API_BASE_URL: 'http://localhost:8000/api/v1',
+    DEFAULT_API_BASE_URL: 'https://ra7al-backend-two.vercel.app/api/v1',
 
-    // Key names for localStorage
     STORAGE_KEYS: {
         TOKEN: 'rahaal_access_token',
         USER: 'rahaal_user_data',
@@ -15,10 +9,6 @@ const CONFIG = {
         PENDING_PHONE: 'rahaal_pending_otp_phone'
     },
 
-    /**
-     * Get active API Base URL.
-     * Priority: window.__ENV__.API_BASE_URL -> localStorage -> DEFAULT_API_BASE_URL
-     */
     getApiBaseUrl() {
         if (window.__ENV__ && window.__ENV__.API_BASE_URL) {
             return window.__ENV__.API_BASE_URL.replace(/\/+$/, '');
@@ -30,9 +20,6 @@ const CONFIG = {
         return this.DEFAULT_API_BASE_URL;
     },
 
-    /**
-     * Set custom API Base URL
-     */
     setApiBaseUrl(url) {
         if (!url) {
             localStorage.removeItem(this.STORAGE_KEYS.API_BASE_URL);
@@ -41,9 +28,6 @@ const CONFIG = {
         }
     },
 
-    /**
-     * Token management
-     */
     getAccessToken() {
         return localStorage.getItem(this.STORAGE_KEYS.TOKEN);
     },
@@ -61,9 +45,6 @@ const CONFIG = {
         localStorage.removeItem(this.STORAGE_KEYS.USER);
     },
 
-    /**
-     * Saved user profile caching
-     */
     getCachedUser() {
         try {
             const raw = localStorage.getItem(this.STORAGE_KEYS.USER);
@@ -81,9 +62,6 @@ const CONFIG = {
         }
     },
 
-    /**
-     * Pending OTP verification phone number
-     */
     getPendingPhone() {
         return localStorage.getItem(this.STORAGE_KEYS.PENDING_PHONE);
     },
@@ -97,5 +75,4 @@ const CONFIG = {
     }
 };
 
-// Expose globally
 window.CONFIG = CONFIG;
