@@ -269,15 +269,13 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-400 mb-1.5">رقم الهاتف (مع كود الدولة أو 01)</label>
-                            <input type="tel" id="reg-phone" required placeholder="01012345678" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary font-mono text-left">
+                            <label class="block text-xs font-bold text-slate-400 mb-1.5">رقم الهاتف (يحب</label>
+                            <input type="tel" id="reg-phone" required value="+20" placeholder="01012345678" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary font-mono text-left">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-400 mb-1.5">الجامعة</label>
                             <select id="reg-university-select" required class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
                                 <option value="" disabled selected>اختر الجامعة المقيد بها</option>
-                                <option value="1">جامعة أسيوط الأهلية</option>
-                                <option value="2">جامعة سفينكس</option>
                             </select>
                         </div>
                         <div>
@@ -1174,6 +1172,15 @@
         <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
             <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">إضافة / تعديل حافلة</h3>
             <form onsubmit="handleSaveBusSubmit(event)" class="space-y-3">
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-400">صورة الحافلة (اختياري)</label>
+                    <input type="file" id="new-bus-image-file" accept="image/*" onchange="handleBusImageSelect(this)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs focus:outline-none file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0B5DAA] file:text-white hover:file:bg-[#6AB9FF] file:cursor-pointer">
+                    <input type="hidden" id="new-bus-image-data" value="">
+                    <div id="bus-image-preview-container" class="hidden mt-2 relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 max-h-36">
+                        <img id="bus-image-preview" src="" alt="معاينة صورة الحافلة" class="w-full h-36 object-cover">
+                        <button type="button" onclick="clearBusImagePreview()" class="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs border-0 cursor-pointer">×</button>
+                    </div>
+                </div>
                 <input type="hidden" id="bus-edit-id" value="">
                 <input type="text" id="new-bus-number" required placeholder="رقم الحافلة (مثال: BUS-101)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                 <input type="text" id="new-bus-plate" required placeholder="رقم اللوحة (مثال: أ ج ص 124)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
@@ -1228,16 +1235,17 @@
                         <label class="block text-[10px] text-slate-400 font-bold mb-1">محطة الوصول (Destination)</label>
                         <select id="route-dest-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
                     </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <input type="number" step="0.1" id="route-dist-input" required placeholder="المسافة بالكيلومتر (مثال: 18.5)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                    <input type="number" id="route-dur-input" required placeholder="المدة بالدقائق (مثال: 35)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-[10px] text-slate-400 font-bold mb-1">المشرف المعين للخط (اختياري)</label>
-                    <select id="route-sup-select" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                        <option value="">بدون مشرف معين</option>
-                    </select>
+                </div>             
+                <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">نقاط التوقف (Waypoints)</label>
+                        <button type="button" onclick="addRouteWaypointRow()" class="btn-gradient text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 hover:scale-105 fast-transition border-0 cursor-pointer shadow-sm">
+                            <i class="fa-solid fa-plus"></i> إضافة نقطة توقف
+                        </button>
+                    </div>
+                    <div id="route-waypoints-container" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        <!-- Populated dynamically via addRouteWaypointRow() -->
+                    </div>
                 </div>
                 <div class="flex gap-2 pt-2">
                     <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ خط السير</button>
@@ -1324,11 +1332,12 @@
                 <input type="text" id="plan-name-input" required placeholder="اسم الباقة (مثال: باقة الفصل الدراسي الكامل)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                 <select id="plan-type-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                     <option value="DAILY">يومي (DAILY)</option>
+                    <option value="Weekly">اسبوعي (Weekly)</option>
                     <option value="MONTHLY">شهري (MONTHLY)</option>
                     <option value="TERM">فصل دراسي (TERM)</option>
                 </select>
                 <input type="number" step="0.5" id="plan-price-input" required placeholder="السعر بالجنيه المصري (EGP)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                <input type="number" id="plan-duration-input" placeholder="المدة بالأيام (اختياري: تلقائي 1 / 30 / 90)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <input type="number" id="plan-duration-input" required placeholder="عدد الايام في الاسبوع" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                 <div class="flex gap-2 pt-2">
                     <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ الباقة</button>
                     <button type="button" onclick="closeModal('add-plan-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>

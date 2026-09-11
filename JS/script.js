@@ -2,16 +2,64 @@
 // Global State
 let currentUser = null;
 let activeUserRole = 'guest';
-let cachedUniversities = [
-    { id: 1, name: 'جامعة أسيوط الأهلية' },
-    { id: 2, name: 'جامعة سفينكس' }
-];
+let cachedUniversities = [];
 let cachedStations = [];
 let cachedRoutes = [];
 let cachedBuses = [];
 let cachedSupervisors = [];
 let activeSubscriptionQR = null;
 let currentSupervisorTripId = null;
+
+// Rejected phone helpers for account deactivation / rejection enforcement
+function getRejectedPhoneSet() {
+    try {
+        const raw = localStorage.getItem('rahaal_rejected_phones');
+        return new Set(raw ? JSON.parse(raw) : []);
+    } catch (e) {
+        return new Set();
+    }
+}
+
+function addRejectedPhone(phone) {
+    if (!phone) return;
+    const set = getRejectedPhoneSet();
+    const cleanStr = String(phone).trim();
+    set.add(cleanStr);
+    const digitsOnly = cleanStr.replace(/\D/g, '');
+    if (digitsOnly) {
+        set.add(digitsOnly);
+        if (digitsOnly.startsWith('20')) set.add('0' + digitsOnly.slice(2));
+        if (digitsOnly.startsWith('0')) set.add('20' + digitsOnly.slice(1));
+    }
+    localStorage.setItem('rahaal_rejected_phones', JSON.stringify(Array.from(set)));
+}
+
+function removeRejectedPhone(phone) {
+    if (!phone) return;
+    const set = getRejectedPhoneSet();
+    const cleanStr = String(phone).trim();
+    set.delete(cleanStr);
+    const digitsOnly = cleanStr.replace(/\D/g, '');
+    if (digitsOnly) {
+        set.delete(digitsOnly);
+        set.delete('0' + digitsOnly.slice(2));
+        set.delete('20' + digitsOnly.slice(1));
+    }
+    localStorage.setItem('rahaal_rejected_phones', JSON.stringify(Array.from(set)));
+}
+
+function isPhoneRejected(phone) {
+    if (!phone) return false;
+    const set = getRejectedPhoneSet();
+    const cleanStr = String(phone).trim();
+    if (set.has(cleanStr)) return true;
+    const digitsOnly = cleanStr.replace(/\D/g, '');
+    if (!digitsOnly) return false;
+    if (set.has(digitsOnly)) return true;
+    if (digitsOnly.startsWith('20') && set.has('0' + digitsOnly.slice(2))) return true;
+    if (digitsOnly.startsWith('0') && set.has('20' + digitsOnly.slice(1))) return true;
+    return false;
+}
 
 function initApp() {
     // 1. Instantly hide loading screen without delay
@@ -83,26 +131,38 @@ async function restoreAuthenticatedUser() {
     }
 }
 
-
 async function loadInitialPublicData() {
     try {
-        const res = await window.universitiesApi.list({ is_active: true, page_size: 100 });
-        if (res && res.items && res.items.length > 0) {
-            cachedUniversities = res.items;
+        const res = await window.universitiesApi.list({ page_size: 100 });
+        let items = [];
+        if (Array.isArray(res)) {
+            items = res;
+        } else if (res && Array.isArray(res.items)) {
+            items = res.items;
+        } else if (res && Array.isArray(res.data)) {
+            items = res.data;
+        }
+
+        if (items.length > 0) {
+            cachedUniversities = items;
             populateUniversitySelects();
         }
     } catch (e) {
-        console.warn('Could not load universities initially, using defaults:', e);
+        console.warn('Could not load universities initially:', e);
     }
 }
 
 function populateUniversitySelects() {
     const regUniSelect = document.getElementById('reg-university-select');
     if (regUniSelect) {
-        regUniSelect.innerHTML = '<option value="">اختر الجامعة المقيد بها</option>';
-        cachedUniversities.forEach(u => {
-            regUniSelect.innerHTML += `<option value="${u.id}">${u.name}</option>`;
-        });
+        if (cachedUniversities.length === 0) {
+            regUniSelect.innerHTML = '<option value="" disabled selected>اختر الجامعة المقيد بها</option>';
+        } else {
+            regUniSelect.innerHTML = '<option value="" disabled selected>اختر الجامعة المقيد بها</option>';
+            cachedUniversities.forEach(u => {
+                regUniSelect.innerHTML += `<option value="${u.id}">${u.name}</option>`;
+            });
+        }
     }
 }
 
@@ -346,6 +406,11 @@ async function handleRegisterSubmit(e) {
         return;
     }
 
+    if (isPhoneRejected(phone)) {
+        showToast('❌ عذراً، هذا الرقم تم رفضه من قبل إدارة رحال مسبقاً ولا يمكن استخدامه للتسجيل مجدداً.', 'error');
+        return;
+    }
+
     if (!cardFileInput.files || cardFileInput.files.length === 0) {
         showToast('يرجى اختيار صورة الكارنيه الجامعي أو بطاقة الترشح للرفع.', 'error');
         return;
@@ -408,6 +473,16 @@ async function handleRegisterSubmit(e) {
         }
     } catch (err) {
         console.error('Registration error:', err);
+        const errStr = ((err && err.message) || '').toLowerCase();
+        if (errStr.includes('inactive') || errStr.includes('reject') || errStr.includes('disabled') || isPhoneRejected(phone)) {
+            showToast('❌ هذا الرقم تم رفضه من قبل إدارة رحال ولا يمكن إعادة استخدامه.', 'error');
+        } else if (err.status === 409 || errStr.includes('already') || errStr.includes('exist') || errStr.includes('موجود') || errStr.includes('مسجل')) {
+            if (isPhoneRejected(phone)) {
+                showToast('❌ هذا الرقم تم رفضه من قبل إدارة رحال مسبقاً.', 'error');
+            } else {
+                showToast('هذا الرقم مسجل بالفعل في النظام. يمكنك تسجيل الدخول.', 'error');
+            }
+        }
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
@@ -1147,30 +1222,36 @@ function switchCeoTab(tabId, btnElement) {
     else if (tabId === 'ceo-boarding') loadCeoBoardingRecords();
 }
 
-// Helper functions for bulletproof user status detection
-function isUserPending(u) {
+// Helper functions for user status detection
+function isUserInactive(u) {
     if (!u) return false;
-    // 1. Explicit boolean or truthy/falsy checks on is_active
-    if (u.is_active === false || u.is_active === 0 || u.is_active === 'false') return true;
-    // 2. Status string checks
     const statusStr = (u.status || u.account_status || u.state || '').toString().trim().toUpperCase();
-    if (statusStr === 'PENDING' || statusStr === 'WAITING' || statusStr === 'WAITING_APPROVAL' || statusStr === 'UNAPPROVED' || statusStr === 'INACTIVE' || statusStr === 'DISABLED') {
+    if (statusStr === 'INACTIVE' || statusStr === 'DISABLED' || statusStr === 'REJECTED' || statusStr === 'BLOCKED') {
         return true;
     }
-    // 3. Approval flags
-    if (u.is_approved === false || u.approved === false) return true;
-    // 4. Verification flags
-    if (u.is_verified === false) return true;
+    if (u.phone_number && isPhoneRejected(u.phone_number)) {
+        return true;
+    }
+    if (u.is_rejected === true || u.is_disabled === true) {
+        return true;
+    }
     return false;
 }
 
 function isUserActive(u) {
     if (!u) return false;
-    if (isUserPending(u)) return false;
-    if (u.is_active === true || u.is_active === 1 || u.is_active === 'true') return true;
+    if (isUserInactive(u)) return false;
     const statusStr = (u.status || u.account_status || '').toString().trim().toUpperCase();
     if (statusStr === 'ACTIVE' || statusStr === 'APPROVED' || statusStr === 'VERIFIED') return true;
-    return !isUserPending(u);
+    if (u.is_active === true || u.is_active === 1 || u.is_active === 'true') return true;
+    return false;
+}
+
+function isUserPending(u) {
+    if (!u) return false;
+    if (isUserActive(u)) return false;
+    if (isUserInactive(u)) return false;
+    return true;
 }
 
 let ceoLoadedUsersList = [];
@@ -1281,7 +1362,7 @@ async function loadCeoUsers() {
     }
 }
 
-// Helper function to resolve university name
+// Helper function to resolve university name dynamically
 function getUniversityName(u) {
     if (!u) return 'غير محدد';
     if (u.university && typeof u.university === 'object' && u.university.name) {
@@ -1290,15 +1371,13 @@ function getUniversityName(u) {
     if (u.university_name && typeof u.university_name === 'string') {
         return u.university_name;
     }
-    if (typeof u.university === 'string' && u.university.trim()) {
+    if (typeof u.university === 'string' && u.university.trim() && isNaN(u.university)) {
         return u.university;
     }
-    const uniId = u.university_id || u.universityId;
-    if (uniId) {
+    const uniId = u.university_id || u.universityId || (typeof u.university === 'number' ? u.university : parseInt(u.university));
+    if (uniId && !isNaN(uniId)) {
         const found = cachedUniversities.find(uni => uni.id === parseInt(uniId) || uni.id === uniId);
         if (found && found.name) return found.name;
-        if (uniId == 1) return 'جامعة أسيوط الأهلية';
-        if (uniId == 2) return 'جامعة سفينكس';
         return `جامعة #${uniId}`;
     }
     return 'غير محدد';
@@ -1325,7 +1404,7 @@ function filterCeoUsersList() {
     } else if (statusFilter === 'active') {
         items = items.filter(u => isUserActive(u));
     } else if (statusFilter === 'inactive') {
-        items = items.filter(u => isUserPending(u) || !isUserActive(u));
+        items = items.filter(u => isUserInactive(u));
     }
 
     // Filter by Search Query (Name, Phone, Faculty, or University)
@@ -1382,7 +1461,8 @@ function renderCeoUsersTable(items) {
         tbody.innerHTML = '';
         items.forEach(u => {
             const isPending = isUserPending(u);
-            const isActive = !isPending && isUserActive(u);
+            const isActive = isUserActive(u);
+            const isInactive = isUserInactive(u);
             const userRole = (u.role || 'STUDENT').toString().toUpperCase();
             const uniName = getUniversityName(u);
             const facultyInfo = u.faculty ? `${u.faculty} ${u.academic_year ? `(${u.academic_year})` : ''}` : 'غير محدد';
@@ -1420,7 +1500,7 @@ function renderCeoUsersTable(items) {
                                     ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30' 
                                     : 'bg-rose-500/15 text-rose-500 border border-rose-500/20')
                         }">
-                            ${isActive ? '<i class="fa-solid fa-circle-check"></i> معتمد ونشط' : (isPending ? '<i class="fa-solid fa-hourglass-half"></i> بانتظار الاعتماد (Pending)' : '<i class="fa-solid fa-ban"></i> معطل')}
+                            ${isActive ? '<i class="fa-solid fa-circle-check"></i> معتمد ونشط' : (isPending ? '<i class="fa-solid fa-hourglass-half"></i> بانتظار الاعتماد (Pending)' : '<i class="fa-solid fa-ban"></i> غير نشط (Inactive / معطل)')}
                         </span>
                     </td>
                     <td class="p-4 text-center">
@@ -1456,6 +1536,10 @@ function renderCeoUsersTable(items) {
 
 async function confirmCeoUser(userId) {
     try {
+        const user = ceoLoadedUsersList.find(u => u.id === userId);
+        if (user && user.phone_number) {
+            removeRejectedPhone(user.phone_number);
+        }
         await window.usersApi.confirmUser(userId);
         showToast('تم اعتماد وتأكيد حساب الطالب بنجاح! يمكنه الآن تسجيل الدخول وحجز الرحلات.', 'success');
         loadCeoUsers();
@@ -1467,8 +1551,12 @@ async function confirmCeoUser(userId) {
 
 async function rejectCeoUser(userId) {
     try {
+        const user = ceoLoadedUsersList.find(u => u.id === userId);
+        if (user && user.phone_number) {
+            addRejectedPhone(user.phone_number);
+        }
         await window.usersApi.rejectUser(userId);
-        showToast('تم رفض / تعطيل الحساب بنجاح.', 'info');
+        showToast('تم تعطيل / رفض الحساب بنجاح. حالة الحساب الآن Inactive (معطل).', 'info');
         loadCeoUsers();
         loadCeoDashboardData();
     } catch (e) {
@@ -1482,7 +1570,8 @@ async function viewCeoUserDetails(userId) {
         if (!user) return;
 
         const isPending = isUserPending(user);
-        const isActive = !isPending && isUserActive(user);
+        const isActive = isUserActive(user);
+        const isInactive = isUserInactive(user);
 
         document.getElementById('det-name').innerText = user.full_name || '--';
         document.getElementById('det-phone').innerText = user.phone_number || '--';
@@ -1500,7 +1589,7 @@ async function viewCeoUserDetails(userId) {
                 ? '<span class="text-emerald-500 font-black">🟢 معتمد ونشط</span>' 
                 : (isPending 
                     ? '<span class="text-amber-500 font-black">🟡 قيد المراجعة والاعتماد (Pending)</span>' 
-                    : '<span class="text-rose-500 font-black">🔴 معطل / غير نشط</span>');
+                    : '<span class="text-rose-500 font-black">🔴 غير نشط (Inactive / معطل)</span>');
         }
 
         // Actions
@@ -1716,6 +1805,7 @@ async function handleSaveUniversitySubmit(e) {
             showToast('تمت إضافة الجامعة بنجاح.', 'success');
         }
         closeModal('add-university-modal');
+        await loadInitialPublicData();
         loadCeoUniversities();
     } catch (err) {
         console.error('Save university error:', err);
@@ -1727,13 +1817,77 @@ async function deleteUniversity(id) {
     try {
         await window.universitiesApi.delete(id);
         showToast('تم حذف الجامعة بنجاح.', 'success');
+        await loadInitialPublicData();
         loadCeoUniversities();
     } catch (err) {
         console.error('Delete university error:', err);
     }
 }
 
-// 4. CEO: Buses Fleet Management
+// 4. CEO: Buses Fleet Management & Bus Image Support
+function getStoredBusImages() {
+    try {
+        const raw = localStorage.getItem('rahaal_bus_images');
+        return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+function setStoredBusImage(key, dataUrl) {
+    if (!key || !dataUrl) return;
+    try {
+        const images = getStoredBusImages();
+        images[String(key)] = dataUrl;
+        localStorage.setItem('rahaal_bus_images', JSON.stringify(images));
+    } catch (e) {
+        console.warn('Could not store bus image:', e);
+    }
+}
+
+function getStoredBusImage(bus) {
+    if (!bus) return null;
+    if (bus.image_url) return bus.image_url;
+    if (bus.image) return bus.image;
+    if (bus.photo) return bus.photo;
+    const images = getStoredBusImages();
+    return images[String(bus.id)] || (bus.bus_number ? images[String(bus.bus_number)] : null) || null;
+}
+
+function handleBusImageSelect(input) {
+    const previewContainer = document.getElementById('bus-image-preview-container');
+    const previewImg = document.getElementById('bus-image-preview');
+    const hiddenData = document.getElementById('new-bus-image-data');
+
+    if (!input.files || input.files.length === 0) {
+        if (previewContainer) previewContainer.classList.add('hidden');
+        if (hiddenData) hiddenData.value = '';
+        return;
+    }
+
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        if (previewImg) previewImg.src = dataUrl;
+        if (hiddenData) hiddenData.value = dataUrl;
+        if (previewContainer) previewContainer.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearBusImagePreview() {
+    const fileInput = document.getElementById('new-bus-image-file');
+    const hiddenData = document.getElementById('new-bus-image-data');
+    const previewContainer = document.getElementById('bus-image-preview-container');
+    const previewImg = document.getElementById('bus-image-preview');
+
+    if (fileInput) fileInput.value = '';
+    if (hiddenData) hiddenData.value = '';
+    if (previewImg) previewImg.src = '';
+    if (previewContainer) previewContainer.classList.add('hidden');
+}
+
 async function loadCeoBuses() {
     const grid = document.getElementById('ceo-buses-grid');
     if (!grid) return;
@@ -1741,16 +1895,16 @@ async function loadCeoBuses() {
 
     try {
         const res = await window.busesApi.list({ page_size: 50 });
-        const items = res?.items || [];
+        const items = res?.items || (Array.isArray(res) ? res : []);
         cachedBuses = items;
 
         if (items.length > 0) {
             grid.innerHTML = '';
             items.forEach(bus => {
                 const statusColors = {
-                    ACTIVE: 'bg-emerald-500/15 text-emerald-500',
-                    INACTIVE: 'bg-slate-500/15 text-slate-400',
-                    MAINTENANCE: 'bg-amber-500/15 text-amber-500'
+                    ACTIVE: 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30',
+                    INACTIVE: 'bg-slate-500/15 text-slate-400 border border-slate-500/30',
+                    MAINTENANCE: 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
                 };
                 const statusLabels = {
                     ACTIVE: 'نشط',
@@ -1758,28 +1912,45 @@ async function loadCeoBuses() {
                     MAINTENANCE: 'في الصيانة'
                 };
 
+                const busImg = getStoredBusImage(bus);
+
                 grid.innerHTML += `
-                    <div class="glass-card p-6 rounded-3xl space-y-4 hover:scale-[1.02] transition border border-slate-200/50 dark:border-slate-800/50">
-                        <div class="flex items-center justify-between">
-                            <span class="text-3xl">🚌</span>
-                            <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${statusColors[bus.status] || 'bg-slate-500/15 text-slate-400'}">
-                                ${statusLabels[bus.status] || bus.status}
-                            </span>
-                        </div>
-                        <div>
-                            <h4 class="font-black text-sm text-slate-800 dark:text-white">${bus.bus_number || `باص #${bus.id}`}</h4>
-                            <p class="text-xs text-slate-400 font-bold mt-1">اللوحة: <span class="font-mono text-slate-600 dark:text-slate-300">${bus.license_plate}</span></p>
-                            <p class="text-[11px] text-slate-400 font-bold">السعة: ${bus.capacity} مقعد • الموديل: ${bus.model || 'سياحي'}</p>
-                        </div>
-                        <div class="flex gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                            <select onchange="updateBusStatus(${bus.id}, this.value)" class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-1 text-[10px] font-bold">
-                                <option value="ACTIVE" ${bus.status === 'ACTIVE' ? 'selected' : ''}>نشط</option>
-                                <option value="MAINTENANCE" ${bus.status === 'MAINTENANCE' ? 'selected' : ''}>صيانة</option>
-                                <option value="INACTIVE" ${bus.status === 'INACTIVE' ? 'selected' : ''}>إيقاف</option>
-                            </select>
-                            <button onclick="deleteBus(${bus.id})" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white p-2 rounded-xl text-xs border-0 cursor-pointer fast-transition">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
+                    <div class="glass-card rounded-3xl overflow-hidden hover:scale-[1.02] transition border border-slate-200/50 dark:border-slate-800/50 shadow-md flex flex-col justify-between">
+                        ${busImg ? `
+                            <div class="relative w-full h-40 bg-slate-900 overflow-hidden group">
+                                <img src="${busImg}" alt="${bus.bus_number}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20"></div>
+                                <span class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[10px] font-black backdrop-blur-md ${statusColors[bus.status] || 'bg-slate-500/50 text-white'}">
+                                    ${statusLabels[bus.status] || bus.status}
+                                </span>
+                                <span class="absolute bottom-2 right-3 font-black text-white text-sm drop-shadow-md flex items-center gap-1.5">
+                                    <i class="fa-solid fa-bus text-[#6AB9FF]"></i> ${bus.bus_number || `باص #${bus.id}`}
+                                </span>
+                            </div>
+                        ` : `
+                            <div class="p-6 pb-0 flex items-center justify-between">
+                                <span class="text-3xl">🚌</span>
+                                <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${statusColors[bus.status] || 'bg-slate-500/15 text-slate-400'}">
+                                    ${statusLabels[bus.status] || bus.status}
+                                </span>
+                            </div>
+                        `}
+                        <div class="p-6 ${busImg ? 'pt-3' : 'pt-2'} space-y-3 flex-1 flex flex-col justify-between">
+                            <div>
+                                ${!busImg ? `<h4 class="font-black text-sm text-slate-800 dark:text-white">${bus.bus_number || `باص #${bus.id}`}</h4>` : ''}
+                                <p class="text-xs text-slate-400 font-bold mt-1">اللوحة: <span class="font-mono text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">${bus.license_plate}</span></p>
+                                <p class="text-[11px] text-slate-400 font-bold mt-1">السعة: ${bus.capacity} مقعد • الموديل: ${bus.model || 'سياحي'}</p>
+                            </div>
+                            <div class="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                                <select onchange="updateBusStatus(${bus.id}, this.value)" class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-1.5 text-[10px] font-bold">
+                                    <option value="ACTIVE" ${bus.status === 'ACTIVE' ? 'selected' : ''}>نشط</option>
+                                    <option value="MAINTENANCE" ${bus.status === 'MAINTENANCE' ? 'selected' : ''}>صيانة</option>
+                                    <option value="INACTIVE" ${bus.status === 'INACTIVE' ? 'selected' : ''}>إيقاف</option>
+                                </select>
+                                <button onclick="deleteBus(${bus.id})" title="حذف الحافلة" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white p-2 rounded-xl text-xs border-0 cursor-pointer fast-transition">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1799,6 +1970,7 @@ function openAddBusModal() {
     document.getElementById('new-bus-capacity').value = '50';
     document.getElementById('new-bus-model').value = '';
     document.getElementById('new-bus-year').value = '2024';
+    clearBusImagePreview();
     const modal = document.getElementById('add-bus-modal');
     if (modal) modal.classList.remove('hidden');
 }
@@ -1811,6 +1983,7 @@ async function handleSaveBusSubmit(e) {
     const cap = parseInt(document.getElementById('new-bus-capacity').value);
     const model = document.getElementById('new-bus-model').value;
     const year = parseInt(document.getElementById('new-bus-year').value) || null;
+    const imageData = document.getElementById('new-bus-image-data')?.value || '';
 
     try {
         const payload = {
@@ -1823,11 +1996,21 @@ async function handleSaveBusSubmit(e) {
 
         if (id) {
             await window.busesApi.update(id, payload);
+            if (imageData) {
+                setStoredBusImage(id, imageData);
+                if (busNumber) setStoredBusImage(busNumber, imageData);
+            }
             showToast('تم تعديل بيانات الحافلة بنجاح.', 'success');
         } else {
-            await window.busesApi.create(payload);
+            const createdBus = await window.busesApi.create(payload);
+            const createdId = createdBus?.id;
+            if (imageData) {
+                if (createdId) setStoredBusImage(createdId, imageData);
+                if (busNumber) setStoredBusImage(busNumber, imageData);
+            }
             showToast('تمت إضافة الحافلة للأسطول بنجاح.', 'success');
         }
+        clearBusImagePreview();
         closeModal('add-bus-modal');
         loadCeoBuses();
     } catch (err) {
@@ -1864,7 +2047,7 @@ async function loadCeoStations() {
 
     try {
         const res = await window.stationsApi.list({ page_size: 100 });
-        const items = res?.items || [];
+        const items = res?.items || (Array.isArray(res) ? res : []);
         cachedStations = items;
 
         if (items.length > 0) {
@@ -1957,7 +2140,43 @@ async function deleteStation(stationId) {
     }
 }
 
-// 6. CEO: Routes & Stops Management
+// 6. CEO: Routes & Stops Management (Dynamic Waypoints)
+function addRouteWaypointRow(selectedStationId = '') {
+    const container = document.getElementById('route-waypoints-container');
+    if (!container) return;
+
+    const rowId = 'wp-row-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const row = document.createElement('div');
+    row.id = rowId;
+    row.className = 'flex items-center gap-2 bg-slate-50 dark:bg-slate-900/80 p-2 rounded-xl border border-slate-200 dark:border-slate-800';
+
+    let optionsHtml = '<option value="">اختر محطة نقطة التوقف</option>';
+    if (cachedStations && cachedStations.length > 0) {
+        cachedStations.forEach(st => {
+            optionsHtml += `<option value="${st.id}" ${st.id == selectedStationId ? 'selected' : ''}>${st.name} (${st.code || 'محطة'})</option>`;
+        });
+    }
+
+    row.innerHTML = `
+        <span class="text-[11px] font-bold text-brand-primary dark:text-[#6AB9FF] whitespace-nowrap flex items-center gap-1">
+            <i class="fa-solid fa-location-dot"></i> نقطة توقف:
+        </span>
+        <select class="route-waypoint-station flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
+            ${optionsHtml}
+        </select>
+        <button type="button" onclick="removeRouteWaypointRow('${rowId}')" title="حذف نقطة التوقف" class="bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg px-2.5 py-1.5 text-xs font-bold fast-transition border-0 cursor-pointer">
+            <i class="fa-solid fa-trash-can"></i>
+        </button>
+    `;
+
+    container.appendChild(row);
+}
+
+function removeRouteWaypointRow(rowId) {
+    const row = document.getElementById(rowId);
+    if (row) row.remove();
+}
+
 async function loadCeoRoutes() {
     const tbody = document.getElementById('ceo-routes-tbody');
     if (!tbody) return;
@@ -1965,7 +2184,7 @@ async function loadCeoRoutes() {
 
     try {
         const res = await window.routesApi.list({ page_size: 50 });
-        const items = res?.items || [];
+        const items = res?.items || (Array.isArray(res) ? res : []);
         cachedRoutes = items;
 
         if (items.length > 0) {
@@ -1977,7 +2196,7 @@ async function loadCeoRoutes() {
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
                         <td class="p-4 font-black text-slate-800 dark:text-white">${r.route_number} - ${r.name}</td>
                         <td class="p-4 font-bold text-slate-600 dark:text-slate-300">${originName} ← ${destName}</td>
-                        <td class="p-4 font-mono font-bold text-slate-500">${r.distance_km} كم / ${r.estimated_duration_minutes} دقيقة</td>
+                        <td class="p-4 font-mono font-bold text-slate-500">${r.distance_km || 15} كم / ${r.estimated_duration_minutes || 30} دقيقة</td>
                         <td class="p-4 font-bold text-slate-600 dark:text-slate-300">${r.supervisor_id ? `مشرف #${r.supervisor_id}` : 'غير معين'}</td>
                         <td class="p-4">
                             <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${r.is_active ? 'bg-emerald-500/15 text-emerald-500' : 'bg-rose-500/15 text-rose-500'}">
@@ -2009,19 +2228,28 @@ async function openAddRouteModal() {
     const originSelect = document.getElementById('route-origin-select');
     const destSelect = document.getElementById('route-dest-select');
 
-    originSelect.innerHTML = '<option value="">اختر محطة الانطلاق</option>';
-    destSelect.innerHTML = '<option value="">اختر محطة الوصول</option>';
+    if (originSelect) originSelect.innerHTML = '<option value="">اختر محطة الانطلاق</option>';
+    if (destSelect) destSelect.innerHTML = '<option value="">اختر محطة الوصول</option>';
 
     cachedStations.forEach(st => {
-        originSelect.innerHTML += `<option value="${st.id}">${st.name}</option>`;
-        destSelect.innerHTML += `<option value="${st.id}">${st.name}</option>`;
+        if (originSelect) originSelect.innerHTML += `<option value="${st.id}">${st.name}</option>`;
+        if (destSelect) destSelect.innerHTML += `<option value="${st.id}">${st.name}</option>`;
     });
 
     document.getElementById('route-edit-id').value = '';
     document.getElementById('route-number-input').value = '';
     document.getElementById('route-name-input').value = '';
-    document.getElementById('route-dist-input').value = '15.0';
-    document.getElementById('route-dur-input').value = '30';
+    const distInput = document.getElementById('route-dist-input');
+    if (distInput) distInput.value = '15.0';
+    const durInput = document.getElementById('route-dur-input');
+    if (durInput) durInput.value = '30';
+
+    // Reset waypoints container and add 1 initial row
+    const waypointsContainer = document.getElementById('route-waypoints-container');
+    if (waypointsContainer) {
+        waypointsContainer.innerHTML = '';
+        addRouteWaypointRow();
+    }
 
     const modal = document.getElementById('add-route-modal');
     if (modal) modal.classList.remove('hidden');
@@ -2034,10 +2262,12 @@ async function handleSaveRouteSubmit(e) {
     const name = document.getElementById('route-name-input').value;
     const originId = parseInt(document.getElementById('route-origin-select').value);
     const destId = parseInt(document.getElementById('route-dest-select').value);
-    const dist = parseFloat(document.getElementById('route-dist-input').value);
-    const dur = parseInt(document.getElementById('route-dur-input').value);
-    const supIdVal = document.getElementById('route-sup-select').value;
-    const supId = supIdVal ? parseInt(supIdVal) : null;
+    const distElem = document.getElementById('route-dist-input');
+    const dist = distElem ? parseFloat(distElem.value) : 15.0;
+    const durElem = document.getElementById('route-dur-input');
+    const dur = durElem ? parseInt(durElem.value) : 30;
+    const supElem = document.getElementById('route-sup-select');
+    const supId = (supElem && supElem.value) ? parseInt(supElem.value) : null;
 
     try {
         const payload = {
@@ -2045,18 +2275,40 @@ async function handleSaveRouteSubmit(e) {
             name: name,
             origin_station_id: originId,
             destination_station_id: destId,
-            distance_km: dist,
-            estimated_duration_minutes: dur,
+            distance_km: dist || 15.0,
+            estimated_duration_minutes: dur || 30,
             supervisor_id: supId
         };
 
+        let routeId = id;
         if (id) {
             await window.routesApi.update(id, payload);
             showToast('تم تحديث خط السير بنجاح.', 'success');
         } else {
-            await window.routesApi.create(payload);
+            const created = await window.routesApi.create(payload);
+            routeId = created?.id;
             showToast('تم إنشاء خط السير بنجاح.', 'success');
         }
+
+        // Save dynamic waypoints / stop points if present
+        if (routeId) {
+            const waypointSelects = document.querySelectorAll('.route-waypoint-station');
+            let order = 1;
+            for (const sel of waypointSelects) {
+                const stationId = parseInt(sel.value);
+                if (stationId && !isNaN(stationId)) {
+                    try {
+                        await window.routesApi.addStop(routeId, {
+                            station_id: stationId,
+                            stop_order: order++
+                        });
+                    } catch (stopErr) {
+                        console.warn('Could not add waypoint stop to route:', stopErr);
+                    }
+                }
+            }
+        }
+
         closeModal('add-route-modal');
         loadCeoRoutes();
     } catch (err) {
@@ -2735,3 +2987,11 @@ function initIntersectionObservers() {
     }
 }
 
+let btn_plus = document.getElementById("btn-plus");
+let plus = document.querySelector("plus")
+
+btn_plus.addEventListener("click",function(){
+
+    plus.innerHTML
+
+})
