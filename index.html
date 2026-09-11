@@ -460,7 +460,7 @@
                 <div class="glass-card rounded-3xl overflow-hidden shadow-sm">
                     <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
                         <div>
-                            <h3 class="font-black text-sm">الرحلات المتاحة للحجز</h3>
+                            <h3 class="font-black text-sm">الباقات المتاحة للحجز</h3>
                             <p class="text-xs text-slate-400 mt-0.5">تُعرض الرحلات الحالية والقادمة من قاعدة البيانات</p>
                         </div>
                         <button onclick="loadAvailableTripsForStudent()" class="text-xs text-brand-primary font-bold hover:underline bg-transparent border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
@@ -535,30 +535,6 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </div>
-
-            <!-- TAB 4: Profile -->
-            <div id="student-tab-profile" class="student-subview hidden space-y-6 max-w-2xl mx-auto">
-                <div class="glass-card p-8 rounded-3xl space-y-6 shadow-sm">
-                    <h3 class="font-black text-lg text-brand-primary">الملف الشخصي للطالب</h3>
-                    <form onsubmit="handleStudentProfileUpdate(event)" class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-400 mb-1.5">الاسم ثلاثي</label>
-                            <input type="text" id="prof-name" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none">
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-400 mb-1.5">الكلية</label>
-                                <input type="text" id="prof-faculty" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-400 mb-1.5">الفرقة الدراسية</label>
-                                <input type="text" id="prof-academic-year" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none">
-                            </div>
-                        </div>
-                        <button type="submit" class="w-full btn-gradient py-3 text-xs font-bold text-white rounded-xl hover:scale-[1.01] fast-transition border-0 cursor-pointer">حفظ تعديلات الملف</button>
-                    </form>
                 </div>
             </div>
         </section>

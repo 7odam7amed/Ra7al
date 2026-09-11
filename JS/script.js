@@ -675,7 +675,8 @@ async function loadAvailableTripsForStudent() {
 
     try {
         const res = await window.reservationsApi.listAvailableTrips({ page_size: 50 });
-        const trips = res?.items || [];
+        // يدعم الاستجابة المباشرة كمصفوفة أو الاستجابة المغلفة داخل items/data.
+        const trips = Array.isArray(res) ? res : (res?.items || res?.data || []);
 
         if (trips.length > 0) {
             tbody.innerHTML = '';
@@ -716,7 +717,10 @@ async function loadAvailableTripsForStudent() {
             tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400 font-bold">لا توجد رحلات مجدولة متاحة للحجز حالياً</td></tr>';
         }
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-rose-500 font-bold">حدث خطأ أثناء تحميل الرحلات المتاحة</td></tr>';
+        const message = e?.status === 401
+            ? 'سجّل الدخول بحساب طالب صالح لعرض الرحلات المتاحة.'
+            : 'حدث خطأ أثناء تحميل الرحلات المتاحة. حاول التحديث مرة أخرى.';
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-rose-500 font-bold">${message}</td></tr>`;
     }
 }
 
@@ -881,7 +885,8 @@ async function openBuySubscriptionModal(selectedRouteId = null, selectedTripId =
         const routesRes = await window.routesApi.list({ is_active: true, page_size: 100 });
         const routeSelect = document.getElementById('buy-sub-route-select');
         routeSelect.innerHTML = '<option value="">اختر خط السير</option>';
-        (routesRes?.items || []).forEach(r => {
+        const routes = Array.isArray(routesRes) ? routesRes : (routesRes?.items || routesRes?.data || []);
+        routes.forEach(r => {
             routeSelect.innerHTML += `<option value="${r.id}">${r.route_number} - ${r.name}</option>`;
         });
 
@@ -889,7 +894,9 @@ async function openBuySubscriptionModal(selectedRouteId = null, selectedTripId =
         const plansRes = await window.subscriptionPlansApi.listAvailable();
         const planSelect = document.getElementById('buy-sub-plan-select');
         planSelect.innerHTML = '<option value="">اختر باقة الاشتراك</option>';
-        (plansRes || []).forEach(p => {
+        // بعض إصدارات الـ API تعيد المصفوفة مباشرة وأخرى تضعها داخل items/data.
+        const plans = Array.isArray(plansRes) ? plansRes : (plansRes?.items || plansRes?.data || []);
+        plans.forEach(p => {
             planSelect.innerHTML += `<option value="${p.id}">${p.name} (${p.price} EGP / ${p.duration_days} يوم)</option>`;
         });
 
