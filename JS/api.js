@@ -309,7 +309,10 @@ const usersApi = {
     async updateStatus(userId, isActive) {
         return ApiClient.request(`/users/${userId}/status`, {
             method: 'PATCH',
-            body: { is_active: isActive }
+            body: { 
+                is_active: Boolean(isActive),
+                status: isActive ? 'ACTIVE' : 'INACTIVE'
+            }
         });
     },
     async confirmUser(userId) {

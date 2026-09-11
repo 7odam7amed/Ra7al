@@ -1147,24 +1147,88 @@ function switchCeoTab(tabId, btnElement) {
     else if (tabId === 'ceo-boarding') loadCeoBoardingRecords();
 }
 
+// Helper functions for bulletproof user status detection
+function isUserPending(u) {
+    if (!u) return false;
+    // 1. Explicit boolean or truthy/falsy checks on is_active
+    if (u.is_active === false || u.is_active === 0 || u.is_active === 'false') return true;
+    // 2. Status string checks
+    const statusStr = (u.status || u.account_status || u.state || '').toString().trim().toUpperCase();
+    if (statusStr === 'PENDING' || statusStr === 'WAITING' || statusStr === 'WAITING_APPROVAL' || statusStr === 'UNAPPROVED' || statusStr === 'INACTIVE' || statusStr === 'DISABLED') {
+        return true;
+    }
+    // 3. Approval flags
+    if (u.is_approved === false || u.approved === false) return true;
+    // 4. Verification flags
+    if (u.is_verified === false) return true;
+    return false;
+}
+
+function isUserActive(u) {
+    if (!u) return false;
+    if (isUserPending(u)) return false;
+    if (u.is_active === true || u.is_active === 1 || u.is_active === 'true') return true;
+    const statusStr = (u.status || u.account_status || '').toString().trim().toUpperCase();
+    if (statusStr === 'ACTIVE' || statusStr === 'APPROVED' || statusStr === 'VERIFIED') return true;
+    return !isUserPending(u);
+}
+
+let ceoLoadedUsersList = [];
+
 async function loadCeoDashboardData() {
     try {
-        const [usersRes, busesRes, tripsRes, subsRes] = await Promise.allSettled([
-            window.usersApi.list({ page_size: 1 }),
+        const [usersRes, pendingUsersRes, busesRes, tripsRes, subsRes] = await Promise.allSettled([
+            window.usersApi.list({ page_size: 100 }),
+            window.usersApi.list({ is_active: false, page_size: 100 }),
             window.busesApi.list({ page_size: 1 }),
             window.tripsApi.list({ page_size: 1 }),
             window.subscriptionsApi.listAll({ page_size: 1 })
         ]);
 
-        const usersCount = usersRes.status === 'fulfilled' ? usersRes.value?.total || 0 : 0;
-        const busesCount = busesRes.status === 'fulfilled' ? busesRes.value?.total || 0 : 0;
-        const tripsCount = tripsRes.status === 'fulfilled' ? tripsRes.value?.total || 0 : 0;
-        const subsCount = subsRes.status === 'fulfilled' ? subsRes.value?.total || 0 : 0;
+        const allUsersRaw = usersRes.status === 'fulfilled' ? usersRes.value : null;
+        const allUsers = Array.isArray(allUsersRaw) ? allUsersRaw : (allUsersRaw?.items || allUsersRaw?.data || allUsersRaw?.users || []);
+        const totalUsers = (allUsersRaw && typeof allUsersRaw.total === 'number') ? allUsersRaw.total : allUsers.length;
 
-        document.getElementById('stat-ceo-users-count').innerText = usersCount;
-        document.getElementById('stat-ceo-buses-count').innerText = busesCount;
-        document.getElementById('stat-ceo-trips-count').innerText = tripsCount;
-        document.getElementById('stat-ceo-subs-count').innerText = subsCount;
+        const pendingUsersRaw = pendingUsersRes.status === 'fulfilled' ? pendingUsersRes.value : null;
+        const pendingUsers = Array.isArray(pendingUsersRaw) ? pendingUsersRaw : (pendingUsersRaw?.items || pendingUsersRaw?.data || pendingUsersRaw?.users || []);
+        
+        // Combine to find all unique pending users
+        const combined = [...allUsers, ...pendingUsers];
+        const uniqueUsersMap = new Map();
+        combined.forEach(u => { if (u && u.id) uniqueUsersMap.set(u.id, u); });
+        const allUniqueUsers = Array.from(uniqueUsersMap.values());
+
+        const pendingCount = allUniqueUsers.filter(u => isUserPending(u) && (u.role || '').toUpperCase() === 'STUDENT').length;
+
+        const busesCount = busesRes.status === 'fulfilled' ? (busesRes.value?.total ?? (Array.isArray(busesRes.value) ? busesRes.value.length : 0)) : 0;
+        const tripsCount = tripsRes.status === 'fulfilled' ? (tripsRes.value?.total ?? (Array.isArray(tripsRes.value) ? tripsRes.value.length : 0)) : 0;
+        const subsCount = subsRes.status === 'fulfilled' ? (subsRes.value?.total ?? (Array.isArray(subsRes.value) ? subsRes.value.length : 0)) : 0;
+
+        const statUsers = document.getElementById('stat-ceo-users-count');
+        if (statUsers) statUsers.innerText = totalUsers;
+
+        const statPending = document.getElementById('stat-ceo-pending-count');
+        if (statPending) statPending.innerText = pendingCount;
+
+        const statBuses = document.getElementById('stat-ceo-buses-count');
+        if (statBuses) statBuses.innerText = busesCount;
+
+        const statTrips = document.getElementById('stat-ceo-trips-count');
+        if (statTrips) statTrips.innerText = tripsCount;
+
+        const statSubs = document.getElementById('stat-ceo-subs-count');
+        if (statSubs) statSubs.innerText = subsCount;
+
+        // Update sidebar pending badge
+        const badgeElem = document.getElementById('ceo-pending-badge');
+        if (badgeElem) {
+            if (pendingCount > 0) {
+                badgeElem.innerText = `${pendingCount} جديد`;
+                badgeElem.classList.remove('hidden');
+            } else {
+                badgeElem.classList.add('hidden');
+            }
+        }
     } catch (e) {
         console.warn('Could not load CEO overview metrics:', e);
     }
@@ -1174,7 +1238,7 @@ async function loadCeoDashboardData() {
 async function loadCeoUsers() {
     const tbody = document.getElementById('ceo-users-tbody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري تحميل المستخدمين...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري تحميل المستخدمين والطلاب...</td></tr>';
 
     const roleFilter = document.getElementById('ceo-users-role-filter')?.value || null;
     const statusFilter = document.getElementById('ceo-users-status-filter')?.value || '';
@@ -1183,86 +1247,188 @@ async function loadCeoUsers() {
         const params = { page_size: 100 };
         if (roleFilter) params.role = roleFilter;
         if (statusFilter === 'active') params.is_active = true;
-        if (statusFilter === 'inactive') params.is_active = false;
+        if (statusFilter === 'inactive' || statusFilter === 'pending') params.is_active = false;
 
-        const res = await window.usersApi.list(params);
-        let items = res?.items || [];
+        // Fetch primary list and if status is pending/all also fetch inactive to ensure no missed pending records
+        const [primaryRes, inactiveRes] = await Promise.allSettled([
+            window.usersApi.list(params),
+            (statusFilter === '' || statusFilter === 'pending') ? window.usersApi.list({ is_active: false, page_size: 100 }) : Promise.resolve(null)
+        ]);
 
-        // Apply local filter
-        if (statusFilter === 'pending') {
-            items = items.filter(u => !u.is_active);
-        } else if (statusFilter === 'active') {
-            items = items.filter(u => Boolean(u.is_active));
-        } else if (statusFilter === 'inactive') {
-            items = items.filter(u => !u.is_active);
+        const primaryRaw = primaryRes.status === 'fulfilled' ? primaryRes.value : null;
+        let primaryItems = Array.isArray(primaryRaw) ? primaryRaw : (primaryRaw?.items || primaryRaw?.data || primaryRaw?.users || []);
+
+        let inactiveItems = [];
+        if (inactiveRes.status === 'fulfilled' && inactiveRes.value) {
+            const raw = inactiveRes.value;
+            inactiveItems = Array.isArray(raw) ? raw : (raw?.items || raw?.data || raw?.users || []);
         }
 
-        if (items.length > 0) {
-            tbody.innerHTML = '';
-            items.forEach(u => {
-                const isActive = Boolean(u.is_active);
-                const facultyInfo = u.faculty ? `${u.faculty} ${u.academic_year ? `(${u.academic_year})` : ''}` : 'غير محدد';
+        // Merge and deduplicate by user ID
+        const mergedMap = new Map();
+        [...primaryItems, ...inactiveItems].forEach(u => {
+            if (u && u.id) mergedMap.set(u.id, u);
+        });
+        let items = Array.from(mergedMap.values());
 
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
-                        <td class="p-4 font-black text-slate-800 dark:text-white">
-                            ${u.full_name}
-                            ${!isActive && u.role === 'STUDENT' ? '<span class="mr-2 inline-block px-1.5 py-0.5 bg-amber-500/20 text-amber-500 rounded text-[9px] font-bold">قيد الاعتماد</span>' : ''}
-                        </td>
-                        <td class="p-4 font-mono font-bold text-slate-600 dark:text-slate-300">${u.phone_number}</td>
-                        <td class="p-4">
-                            <span class="px-2 py-0.5 rounded-md text-[10px] font-black ${
-                                u.role === 'CEO' ? 'bg-purple-500/15 text-purple-500' :
-                                u.role === 'SUPERVISOR' ? 'bg-blue-500/15 text-blue-500' : 'bg-slate-500/15 text-slate-400'
-                            }">
-                                ${u.role}
-                            </span>
-                        </td>
-                        <td class="p-4 text-xs font-bold text-slate-500 dark:text-slate-400">${facultyInfo}</td>
-                        <td class="p-4">
-                            <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${
-                                isActive 
-                                    ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/20' 
-                                    : 'bg-amber-500/15 text-amber-500 border border-amber-500/20'
-                            }">
-                                ${isActive ? '🟢 معتمد ونشط' : '🟡 قيد المراجعة (Pending)'}
-                            </span>
-                        </td>
-                        <td class="p-4 text-center">
-                            <div class="flex items-center justify-center gap-1.5 flex-wrap">
-                                <button onclick="viewCeoUserDetails(${u.id})" title="عرض تفاصيل الحساب والكارنيه" class="bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg fast-transition border-0 cursor-pointer">
-                                    <i class="fa-solid fa-id-card"></i> الكارنيه / الملف
-                                </button>
-                                ${!isActive ? `
-                                    <button onclick="confirmCeoUser(${u.id})" title="اعتماد وتأكيد الحساب" class="bg-emerald-500 text-white hover:bg-emerald-600 font-bold text-[10px] px-2.5 py-1.5 rounded-lg fast-transition shadow-sm border-0 cursor-pointer flex items-center gap-1">
-                                        <i class="fa-solid fa-check"></i> اعتماد
-                                    </button>
-                                    <button onclick="rejectCeoUser(${u.id})" title="رفض الحساب" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg fast-transition border-0 cursor-pointer flex items-center gap-1">
-                                        <i class="fa-solid fa-xmark"></i> رفض
-                                    </button>
-                                ` : `
-                                    <button onclick="rejectCeoUser(${u.id})" title="تعطيل أو إلغاء اعتماد الحساب" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg fast-transition border-0 cursor-pointer flex items-center gap-1">
-                                        <i class="fa-solid fa-ban"></i> تعطيل
-                                    </button>
-                                `}
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            });
-        } else {
-            tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">لا يوجد مستخدمين مطابقين</td></tr>';
-        }
+        // Store globally for instant search
+        ceoLoadedUsersList = items;
+
+        filterCeoUsersList();
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل بيانات المستخدمين</td></tr>';
+        console.error('Load CEO users error:', e);
+        tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل بيانات المستخدمين من السيرفر</td></tr>';
+    }
+}
+
+function filterCeoUsersList() {
+    const tbody = document.getElementById('ceo-users-tbody');
+    if (!tbody) return;
+
+    const roleFilter = document.getElementById('ceo-users-role-filter')?.value || '';
+    const statusFilter = document.getElementById('ceo-users-status-filter')?.value || '';
+    const searchQuery = (document.getElementById('ceo-users-search')?.value || '').trim().toLowerCase();
+
+    let items = [...ceoLoadedUsersList];
+
+    // Filter by Role
+    if (roleFilter) {
+        items = items.filter(u => (u.role || '').toString().toUpperCase() === roleFilter.toUpperCase());
+    }
+
+    // Filter by Status
+    if (statusFilter === 'pending') {
+        items = items.filter(u => isUserPending(u));
+    } else if (statusFilter === 'active') {
+        items = items.filter(u => isUserActive(u));
+    } else if (statusFilter === 'inactive') {
+        items = items.filter(u => isUserPending(u) || !isUserActive(u));
+    }
+
+    // Filter by Search Query (Name or Phone)
+    if (searchQuery) {
+        items = items.filter(u => {
+            const name = (u.full_name || '').toLowerCase();
+            const phone = (u.phone_number || '').toLowerCase();
+            const faculty = (u.faculty || '').toLowerCase();
+            return name.includes(searchQuery) || phone.includes(searchQuery) || faculty.includes(searchQuery);
+        });
+    }
+
+    // Sort: Pending users always at the top, then by ID descending (newest first)
+    items.sort((a, b) => {
+        const aPending = isUserPending(a);
+        const bPending = isUserPending(b);
+        if (aPending && !bPending) return -1;
+        if (!aPending && bPending) return 1;
+        return (b.id || 0) - (a.id || 0);
+    });
+
+    // Update Summary Badge
+    const pendingCount = ceoLoadedUsersList.filter(u => isUserPending(u) && (u.role || '').toUpperCase() === 'STUDENT').length;
+    const badgeSummary = document.getElementById('ceo-users-summary-badge');
+    if (badgeSummary) {
+        badgeSummary.innerText = `الكل: ${ceoLoadedUsersList.length} | قيد المراجعة: ${pendingCount}`;
+        if (pendingCount > 0) {
+            badgeSummary.className = 'text-[11px] font-black px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30 animate-pulse';
+        } else {
+            badgeSummary.className = 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500';
+        }
+    }
+
+    // Update sidebar badge
+    const sidebarBadge = document.getElementById('ceo-pending-badge');
+    if (sidebarBadge) {
+        if (pendingCount > 0) {
+            sidebarBadge.innerText = `${pendingCount} جديد`;
+            sidebarBadge.classList.remove('hidden');
+        } else {
+            sidebarBadge.classList.add('hidden');
+        }
+    }
+
+    renderCeoUsersTable(items);
+}
+
+function renderCeoUsersTable(items) {
+    const tbody = document.getElementById('ceo-users-tbody');
+    if (!tbody) return;
+
+    if (items.length > 0) {
+        tbody.innerHTML = '';
+        items.forEach(u => {
+            const isPending = isUserPending(u);
+            const isActive = !isPending && isUserActive(u);
+            const userRole = (u.role || 'STUDENT').toString().toUpperCase();
+            const facultyInfo = u.faculty ? `${u.faculty} ${u.academic_year ? `(${u.academic_year})` : ''}` : 'غير محدد';
+
+            tbody.innerHTML += `
+                <tr class="transition ${isPending ? 'bg-amber-500/5 hover:bg-amber-500/10 border-r-4 border-r-amber-500' : 'hover:bg-slate-50/50 dark:hover:bg-slate-950/20'}">
+                    <td class="p-4">
+                        <div class="flex items-center gap-2">
+                            <span class="font-black text-slate-800 dark:text-white">${u.full_name || 'بدون اسم'}</span>
+                            ${isPending ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-md text-[10px] font-black border border-amber-500/30"><i class="fa-solid fa-clock"></i> قيد المراجعة</span>' : ''}
+                        </div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">معرف الحساب: #${u.id}</div>
+                    </td>
+                    <td class="p-4 font-mono font-bold text-slate-600 dark:text-slate-300" dir="ltr">${u.phone_number || '--'}</td>
+                    <td class="p-4">
+                        <span class="px-2 py-0.5 rounded-md text-[10px] font-black ${
+                            userRole === 'CEO' ? 'bg-purple-500/15 text-purple-500' :
+                            userRole === 'SUPERVISOR' ? 'bg-blue-500/15 text-blue-500' : 'bg-slate-500/15 text-slate-500 dark:text-slate-300'
+                        }">
+                            ${userRole === 'STUDENT' ? 'طالب (STUDENT)' : (userRole === 'SUPERVISOR' ? 'مشرف (SUPERVISOR)' : userRole)}
+                        </span>
+                    </td>
+                    <td class="p-4 text-xs font-bold text-slate-600 dark:text-slate-400">${facultyInfo}</td>
+                    <td class="p-4">
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-black inline-flex items-center gap-1.5 ${
+                            isActive 
+                                ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/20' 
+                                : (isPending 
+                                    ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30' 
+                                    : 'bg-rose-500/15 text-rose-500 border border-rose-500/20')
+                        }">
+                            ${isActive ? '<i class="fa-solid fa-circle-check"></i> معتمد ونشط' : (isPending ? '<i class="fa-solid fa-hourglass-half"></i> بانتظار الاعتماد (Pending)' : '<i class="fa-solid fa-ban"></i> معطل')}
+                        </span>
+                    </td>
+                    <td class="p-4 text-center">
+                        <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                            <button onclick="viewCeoUserDetails(${u.id})" title="عرض تفاصيل الحساب والكارنيه" class="bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg fast-transition border-0 cursor-pointer flex items-center gap-1">
+                                <i class="fa-solid fa-id-card"></i> الكارنيه / الملف
+                            </button>
+                            ${isPending ? `
+                                <button onclick="confirmCeoUser(${u.id})" title="اعتماد وتأكيد الحساب" class="bg-emerald-500 text-white hover:bg-emerald-600 font-bold text-[10px] px-3 py-1.5 rounded-lg fast-transition shadow-sm border-0 cursor-pointer flex items-center gap-1">
+                                    <i class="fa-solid fa-check"></i> اعتماد الحساب
+                                </button>
+                                <button onclick="rejectCeoUser(${u.id})" title="رفض الحساب" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg fast-transition border-0 cursor-pointer flex items-center gap-1">
+                                    <i class="fa-solid fa-xmark"></i> رفض
+                                </button>
+                            ` : (isActive ? `
+                                <button onclick="rejectCeoUser(${u.id})" title="تعطيل أو إلغاء اعتماد الحساب" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg fast-transition border-0 cursor-pointer flex items-center gap-1">
+                                    <i class="fa-solid fa-ban"></i> تعطيل
+                                </button>
+                            ` : `
+                                <button onclick="confirmCeoUser(${u.id})" title="إعادة تفعيل الحساب" class="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg fast-transition border-0 cursor-pointer flex items-center gap-1">
+                                    <i class="fa-solid fa-rotate-left"></i> تفعيل
+                                </button>
+                            `)}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">لا يوجد مستخدمين مطابقين للبحث أو الفلتر المحدد</td></tr>';
     }
 }
 
 async function confirmCeoUser(userId) {
     try {
         await window.usersApi.confirmUser(userId);
-        showToast('تم اعتماد وتأكيد الحساب بنجاح! يمكن للطالب الآن تسجيل الدخول.', 'success');
+        showToast('تم اعتماد وتأكيد حساب الطالب بنجاح! يمكنه الآن تسجيل الدخول وحجز الرحلات.', 'success');
         loadCeoUsers();
+        loadCeoDashboardData();
     } catch (e) {
         console.error('Confirm user error:', e);
     }
@@ -1273,6 +1439,7 @@ async function rejectCeoUser(userId) {
         await window.usersApi.rejectUser(userId);
         showToast('تم رفض / تعطيل الحساب بنجاح.', 'info');
         loadCeoUsers();
+        loadCeoDashboardData();
     } catch (e) {
         console.error('Reject user error:', e);
     }
@@ -1283,6 +1450,9 @@ async function viewCeoUserDetails(userId) {
         const user = await window.usersApi.getById(userId);
         if (!user) return;
 
+        const isPending = isUserPending(user);
+        const isActive = !isPending && isUserActive(user);
+
         document.getElementById('det-name').innerText = user.full_name || '--';
         document.getElementById('det-phone').innerText = user.phone_number || '--';
         document.getElementById('det-role').innerText = user.role || '--';
@@ -1291,15 +1461,17 @@ async function viewCeoUserDetails(userId) {
         
         const statusElem = document.getElementById('det-phone-verified');
         if (statusElem) {
-            statusElem.innerHTML = user.is_active 
-                ? '<span class="text-emerald-500 font-bold">🟢 معتمد ونشط</span>' 
-                : '<span class="text-amber-500 font-bold">🟡 قيد المراجعة والاعتماد (Pending)</span>';
+            statusElem.innerHTML = isActive 
+                ? '<span class="text-emerald-500 font-black">🟢 معتمد ونشط</span>' 
+                : (isPending 
+                    ? '<span class="text-amber-500 font-black">🟡 قيد المراجعة والاعتماد (Pending)</span>' 
+                    : '<span class="text-rose-500 font-black">🔴 معطل / غير نشط</span>');
         }
 
         // Actions
         const actionsElem = document.getElementById('det-modal-actions');
         if (actionsElem) {
-            if (!user.is_active) {
+            if (isPending) {
                 actionsElem.innerHTML = `
                     <button onclick="confirmCeoUser(${user.id}); closeModal('view-student-modal');" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs border-0 cursor-pointer shadow-md flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-check"></i> تأكيد واعتماد الحساب
@@ -1308,10 +1480,16 @@ async function viewCeoUserDetails(userId) {
                         <i class="fa-solid fa-xmark"></i> رفض الطلب
                     </button>
                 `;
-            } else {
+            } else if (isActive) {
                 actionsElem.innerHTML = `
                     <button onclick="rejectCeoUser(${user.id}); closeModal('view-student-modal');" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 rounded-xl text-xs border-0 cursor-pointer shadow-md flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-ban"></i> إلغاء الاعتماد / تعطيل الحساب
+                    </button>
+                `;
+            } else {
+                actionsElem.innerHTML = `
+                    <button onclick="confirmCeoUser(${user.id}); closeModal('view-student-modal');" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs border-0 cursor-pointer shadow-md flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-rotate-left"></i> إعادة تفعيل الحساب
                     </button>
                 `;
             }
@@ -1322,7 +1500,7 @@ async function viewCeoUserDetails(userId) {
         const fallbackElem = document.getElementById('det-card-fallback');
         const openLink = document.getElementById('det-card-open-link');
 
-        if (user.role === 'STUDENT') {
+        if ((user.role || '').toUpperCase() === 'STUDENT') {
             try {
                 const blob = await window.usersApi.getIdCard(userId);
                 if (blob instanceof Blob) {
@@ -1365,6 +1543,7 @@ async function toggleUserStatus(userId, currentStatus) {
         await window.usersApi.updateStatus(userId, !currentStatus);
         showToast(`تم ${currentStatus ? 'تعطيل' : 'تنشيط'} الحساب بنجاح.`, 'success');
         loadCeoUsers();
+        loadCeoDashboardData();
     } catch (e) {
         console.error('Toggle status error:', e);
     }
