@@ -148,14 +148,11 @@ const ApiClient = {
             const rawMsg = (error.message || '').toLowerCase();
             const detailStr = typeof error.details?.detail === 'string' ? error.details.detail.toLowerCase() : '';
 
-            // Check if 401 is due to unverified phone
-            if (rawMsg.includes('phone') || rawMsg.includes('verif') || detailStr.includes('phone') || detailStr.includes('verif') || detailStr.includes('otp')) {
+            // Check if 401 is due to inactive/pending account
+            if (rawMsg.includes('pending') || rawMsg.includes('inactive') || rawMsg.includes('not active') || rawMsg.includes('disabled') || rawMsg.includes('approve') || rawMsg.includes('confirm') ||
+                detailStr.includes('pending') || detailStr.includes('inactive') || detailStr.includes('not active') || detailStr.includes('disabled') || detailStr.includes('approve')) {
                 if (window.showToast) {
-                    window.showToast('الحساب غير مفعل: يرجى تأكيد رقم الهاتف أولاً عبر كود OTP.', 'error');
-                }
-                const pendingPhone = window.CONFIG.getPendingPhone();
-                if (window.showOtpVerificationModal) {
-                    window.showOtpVerificationModal(pendingPhone);
+                    window.showToast('حسابك قيد المراجعة والاعتماد من قبل إدارة رحال (CEO) أو تم إيقافه.', 'warning');
                 }
                 return;
             }
@@ -172,6 +169,10 @@ const ApiClient = {
                     if (typeof window.showLogin === 'function') {
                         window.showLogin();
                     }
+                }
+            } else {
+                if (window.showToast) {
+                    window.showToast(error.message || 'بيانات الدخول غير صحيحة أو الحساب بانتظار اعتماد الـ CEO.', 'error');
                 }
             }
             return;
@@ -310,6 +311,12 @@ const usersApi = {
             method: 'PATCH',
             body: { is_active: isActive }
         });
+    },
+    async confirmUser(userId) {
+        return this.updateStatus(userId, true);
+    },
+    async rejectUser(userId) {
+        return this.updateStatus(userId, false);
     },
     async getIdCard(userId) {
         return ApiClient.request(`/users/${userId}/id-card`);

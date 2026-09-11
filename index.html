@@ -162,8 +162,8 @@
                     </div>
                     <div class="step-card scroll-reveal space-y-3">
                         <div class="w-12 h-12 bg-[#0B5DAA] text-white text-base font-black rounded-full flex items-center justify-center mx-auto shadow-md">٢</div>
-                        <h4 class="font-black text-sm">أكّد رقم الهاتف (OTP)</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">استلم رمز التحقق عبر الواتساب لتفعيل حسابك وتأمينه فوراً.</p>
+                        <h4 class="font-black text-sm">مراجعة واعتماد الحساب</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">يتم مراجعة الكارنيه أو بطاقة الترشح وتفعيل حسابك من قِبل إدارة رحال.</p>
                     </div>
                     <div class="step-card scroll-reveal space-y-3">
                         <div class="w-12 h-12 bg-[#0B5DAA] text-white text-base font-black rounded-full flex items-center justify-center mx-auto shadow-md">٣</div>
@@ -252,7 +252,7 @@
                         </svg>
                     </div>
                     <h3 class="text-xl font-black leading-relaxed">إنشاء حساب طالب جديد</h3>
-                    <p class="text-xs text-slate-400">سجل بياناتك للبدء، سيتم إرسال رمز تأكيد OTP عبر الواتساب</p>
+                    <p class="text-xs text-slate-400">سجل بياناتك للبدء، سيتم مراجعة وتأكيد حسابك من قبل إدارة رحال (CEO)</p>
                 </div>
 
                 <form onsubmit="handleRegisterSubmit(event)" class="space-y-4">
@@ -286,13 +286,23 @@
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-400 mb-1.5">السنة الدراسية</label>
-                            <input type="text" id="reg-academic-year" required placeholder="مثال: الفرقة الثالثة" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
+                            <input type="text" id="reg-academic-year" required placeholder="مثال: الفرقة الأولى / الفرقة الثالثة" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary">
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 mb-1.5">صورة الكارنيه الجامعي (أو إثبات القيد)</label>
-                        <input type="file" id="reg-card-file" accept="image/*,.pdf" required class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0B5DAA] file:text-white hover:file:bg-[#6AB9FF] file:cursor-pointer">
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-slate-400 flex items-center justify-between">
+                            <span>صورة الكارنيه الجامعي أو بطاقة الترشح (لطلاب الفرقة الأولى)</span>
+                            <span class="text-[10px] text-amber-500 font-normal">مطلوب للاعتماد</span>
+                        </label>
+                        <input type="file" id="reg-card-file" accept="image/*,.pdf" required onchange="handleCardFileSelection(this)" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0B5DAA] file:text-white hover:file:bg-[#6AB9FF] file:cursor-pointer">
+                        <p class="text-[11px] text-slate-400">💡 <span class="font-bold text-slate-300">لطلاب الفرقة الأولى / المستجدين:</span> يمكنك رفع صورة بطاقة الترشح أو إيصال سداد المصروفات لحين استخراج الكارنيه.</p>
+                        <div id="reg-card-preview-container" class="mt-2 hidden">
+                            <div class="relative inline-block border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-slate-900/20 p-1">
+                                <img id="reg-card-preview-img" src="" alt="معاينة الكارنيه / بطاقة الترشح" class="max-h-28 rounded-lg object-contain">
+                                <p id="reg-card-file-name" class="text-[10px] text-slate-400 text-center mt-1 truncate max-w-[200px]"></p>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -307,7 +317,7 @@
                     </div>
 
                     <button type="submit" id="btn-register-submit" class="w-full btn-gradient py-3.5 text-xs font-black rounded-xl text-white hover:scale-[1.02] active:scale-95 fast-transition shadow-md border-0 cursor-pointer flex items-center justify-center gap-2">
-                        <span>تسجيل الحساب وإرسال رمز التحقق</span>
+                        <span>إنشاء الحساب وإرسال للمراجعة</span>
                     </button>
                 </form>
 
@@ -318,31 +328,29 @@
         </section>
 
 
-        <!-- ================= 4) OTP VERIFICATION VIEW / MODAL ================= -->
-        <div id="otp-view" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
-            <div class="glass-card p-8 rounded-3xl w-full max-w-md mx-4 space-y-6 shadow-2xl border border-slate-200/50 dark:border-slate-800/50 animate-[fadeIn_0.15s_ease-out]">
-                <div class="text-center space-y-2">
-                    <div class="w-14 h-14 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center mx-auto text-2xl">
-                        <i class="fa-brands fa-whatsapp"></i>
-                    </div>
-                    <h3 class="text-xl font-black text-slate-800 dark:text-white">تأكيد رقم الهاتف عبر الواتساب</h3>
-                    <p class="text-xs text-slate-400">تم إرسال كود التحقق المكون من 6 أرقام إلى الرقم:</p>
-                    <p id="otp-phone-display" class="font-mono font-bold text-sm text-brand-primary dark:text-[#6AB9FF] dir-ltr">+2010xxxxxxxx</p>
+        <!-- ================= 4) REGISTRATION PENDING / CONFIRMATION MODAL ================= -->
+        <div id="reg-pending-modal" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+            <div class="glass-card p-8 rounded-3xl w-full max-w-md mx-4 space-y-6 shadow-2xl border border-slate-200/50 dark:border-slate-800/50 text-center animate-[fadeIn_0.15s_ease-out]">
+                <div class="w-16 h-16 bg-amber-500/15 text-amber-500 rounded-2xl flex items-center justify-center mx-auto text-3xl">
+                    <i class="fa-solid fa-hourglass-half"></i>
                 </div>
-
-                <form onsubmit="handleOtpSubmit(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 mb-1.5 text-center">أدخل كود التحقق (OTP Code)</label>
-                        <input type="text" id="otp-code-input" maxlength="10" required placeholder="123456" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-center text-xl tracking-widest font-mono font-bold focus:outline-none focus:border-brand-primary">
+                <div class="space-y-3">
+                    <h3 class="text-xl font-black text-slate-800 dark:text-white">تم استلام طلبك بنجاح!</h3>
+                    <p class="text-xs text-slate-400 leading-relaxed">
+                        حسابك الآن في حالة <span class="text-amber-500 font-bold">قيد المراجعة والاعتماد (Pending)</span> من قِبل المدير التنفيذي (CEO).
+                    </p>
+                    <div class="text-[11px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/70 p-3 rounded-xl border border-slate-200/50 dark:border-slate-800/50 text-right space-y-1">
+                        <p>✔️ تم رفع صورة الكارنيه الجامعي / بطاقة الترشح بنجاح.</p>
+                        <p>✔️ ستتمكن من تسجيل الدخول والاشتراك فور اعتماد الحساب من إدارة رحال.</p>
                     </div>
-                    <button type="submit" id="btn-otp-verify" class="w-full btn-gradient py-3.5 text-xs font-black rounded-xl text-white hover:scale-[1.02] active:scale-95 fast-transition shadow-md border-0 cursor-pointer">
-                        تأكيد وتفعيل الحساب
+                </div>
+                <div class="space-y-2 pt-2">
+                    <button onclick="closeRegPendingModalAndLogin()" class="w-full btn-gradient py-3.5 text-xs font-black rounded-xl text-white hover:scale-[1.02] active:scale-95 fast-transition shadow-md border-0 cursor-pointer">
+                        الانتقال لتسجيل الدخول
                     </button>
-                </form>
-
-                <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-200 dark:border-slate-800">
-                    <button id="btn-resend-otp" onclick="handleResendOtp()" class="text-brand-primary dark:text-[#6AB9FF] font-bold hover:underline bg-transparent border-0 cursor-pointer">إعادة إرسال الكود</button>
-                    <button onclick="closeOtpModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-transparent border-0 cursor-pointer">إلغاء / تغيير الرقم</button>
+                    <button onclick="closeModal('reg-pending-modal')" class="text-xs text-slate-400 hover:text-slate-200 bg-transparent border-0 cursor-pointer">
+                        إغلاق
+                    </button>
                 </div>
             </div>
         </div>
@@ -756,12 +764,18 @@
                 <div id="ceo-users-view" class="ceo-subview hidden space-y-6">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <h3 class="font-bold text-lg">إدارة واعتماد حسابات المستخدمين والطلاب</h3>
-                        <div class="flex gap-2">
+                        <div class="flex flex-wrap gap-2">
                             <select id="ceo-users-role-filter" onchange="loadCeoUsers()" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
                                 <option value="">كل الرتب (All Roles)</option>
                                 <option value="STUDENT">طالب (STUDENT)</option>
                                 <option value="SUPERVISOR">مشرف (SUPERVISOR)</option>
                                 <option value="CEO">المدير التنفيذي (CEO)</option>
+                            </select>
+                            <select id="ceo-users-status-filter" onchange="loadCeoUsers()" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                                <option value="">كل الحالات (All Status)</option>
+                                <option value="pending">🟡 قيد المراجعة والاعتماد (Pending)</option>
+                                <option value="active">🟢 معتمد ونشط (Active)</option>
+                                <option value="inactive">🔴 معطل / مرفوض (Inactive)</option>
                             </select>
                             <button onclick="loadCeoUsers()" class="btn-gradient text-white px-3 py-2 text-xs rounded-xl font-bold border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
                         </div>
@@ -773,9 +787,9 @@
                                     <th class="p-4">الاسم</th>
                                     <th class="p-4">رقم الهاتف</th>
                                     <th class="p-4">الرتبة</th>
-                                    <th class="p-4">الحالة</th>
-                                    <th class="p-4">تأكيد الهاتف</th>
-                                    <th class="p-4 text-center">العمليات</th>
+                                    <th class="p-4">الكلية / الفرقة</th>
+                                    <th class="p-4">حالة الحساب</th>
+                                    <th class="p-4 text-center">إجراءات الاعتماد (CEO)</th>
                                 </tr>
                             </thead>
                             <tbody id="ceo-users-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
@@ -1043,7 +1057,7 @@
     <div id="view-student-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
         <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-5 shadow-2xl animate-[fadeIn_0.12s_ease-out] max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
-                <h3 class="font-bold text-md text-brand-primary dark:text-[#6AB9FF]">تفاصيل ملف المستخدم والكارنيه</h3>
+                <h3 class="font-bold text-md text-brand-primary dark:text-[#6AB9FF]">تفاصيل المستخدم ومراجعة الكارنيه / بطاقة الترشح</h3>
                 <button onclick="closeModal('view-student-modal')" class="text-slate-400 hover:text-slate-200 text-xl font-bold bg-transparent border-0 cursor-pointer">×</button>
             </div>
             
@@ -1070,21 +1084,26 @@
                         <p id="det-faculty" class="font-bold text-slate-800 dark:text-white mt-1"></p>
                     </div>
                     <div>
-                        <p class="text-slate-400 font-bold">حالة تفعيل الهاتف</p>
-                        <p id="det-phone-verified" class="font-bold text-slate-800 dark:text-white mt-1"></p>
+                        <p class="text-slate-400 font-bold">حالة الحساب</p>
+                        <p id="det-phone-verified" class="font-bold mt-1"></p>
                     </div>
                 </div>
 
                 <div class="border-t border-slate-200 dark:border-slate-800 pt-3">
-                    <p class="text-slate-400 font-bold mb-2">صورة الكارنيه الجامعي المرفوعة:</p>
-                    <div id="det-card-container" class="w-full h-44 bg-slate-100 dark:bg-slate-900 rounded-2xl flex items-center justify-center border border-slate-200 dark:border-slate-800 overflow-hidden relative">
-                        <img id="det-card-img" src="" alt="Student ID Card" class="w-full h-full object-contain hidden">
-                        <p id="det-card-fallback" class="text-xs text-slate-400">جاري تحميل صورة الكارنيه...</p>
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-slate-400 font-bold">صورة الكارنيه الجامعي / بطاقة الترشح:</p>
+                        <a id="det-card-open-link" href="#" target="_blank" class="hidden text-brand-primary dark:text-[#6AB9FF] font-bold text-[11px] hover:underline">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> عرض بالحجم الكامل
+                        </a>
+                    </div>
+                    <div id="det-card-container" class="w-full h-52 bg-slate-100 dark:bg-slate-900 rounded-2xl flex items-center justify-center border border-slate-200 dark:border-slate-800 overflow-hidden relative p-2">
+                        <img id="det-card-img" src="" alt="Student ID Card / Nomination Card" class="max-w-full max-h-full object-contain rounded-xl hidden">
+                        <p id="det-card-fallback" class="text-xs text-slate-400">جاري تحميل صورة الكارنيه / بطاقة الترشح...</p>
                     </div>
                 </div>
             </div>
 
-            <div class="flex gap-2 border-t border-slate-200 dark:border-slate-800 pt-3" id="det-modal-actions">
+            <div class="flex flex-wrap gap-2 border-t border-slate-200 dark:border-slate-800 pt-3" id="det-modal-actions">
                 <!-- Inserted Dynamically -->
             </div>
         </div>

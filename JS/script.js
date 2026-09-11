@@ -293,7 +293,39 @@ async function handleLoginSubmit(e) {
 }
 
 /**
- * Handle Student Registration Submit (Upload ID -> Register -> Prompt WhatsApp OTP)
+ * Handle Card / Nomination File Selection Preview
+ */
+function handleCardFileSelection(input) {
+    const previewContainer = document.getElementById('reg-card-preview-container');
+    const previewImg = document.getElementById('reg-card-preview-img');
+    const fileNameDisplay = document.getElementById('reg-card-file-name');
+
+    if (!input.files || input.files.length === 0) {
+        if (previewContainer) previewContainer.classList.add('hidden');
+        return;
+    }
+
+    const file = input.files[0];
+    if (fileNameDisplay) fileNameDisplay.innerText = file.name;
+
+    if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            if (previewImg) {
+                previewImg.src = e.target.result;
+                previewImg.classList.remove('hidden');
+            }
+            if (previewContainer) previewContainer.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    } else {
+        if (previewImg) previewImg.classList.add('hidden');
+        if (previewContainer) previewContainer.classList.remove('hidden');
+    }
+}
+
+/**
+ * Handle Student Registration Submit (Upload ID / Nomination Card -> Register -> Show Pending Status)
  */
 async function handleRegisterSubmit(e) {
     e.preventDefault();
@@ -315,7 +347,7 @@ async function handleRegisterSubmit(e) {
     }
 
     if (!cardFileInput.files || cardFileInput.files.length === 0) {
-        showToast('يرجى اختيار صورة الكارنيه الجامعي للرفع.', 'error');
+        showToast('يرجى اختيار صورة الكارنيه الجامعي أو بطاقة الترشح للرفع.', 'error');
         return;
     }
 
@@ -326,19 +358,19 @@ async function handleRegisterSubmit(e) {
 
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري رفع الكارنيه وتسجيل الحساب...';
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري رفع المستند وتسجيل الحساب...';
     }
 
     try {
-        // Step 1: Upload ID Card
-        showToast('جاري رفع صورة الكارنيه الجامعي...', 'info');
+        // Step 1: Upload ID Card / Nomination Card
+        showToast('جاري رفع صورة الكارنيه / بطاقة الترشح...', 'info');
         const uploadRes = await window.authApi.uploadIdCard(cardFileInput.files[0]);
 
         // Find reference path in response
         const cardRefPath = uploadRes.file_path || uploadRes.reference_path || uploadRes.path || Object.values(uploadRes)[0] || 'uploads/id_cards/default.png';
 
         // Step 2: Register user
-        showToast('جاري إرسال بيانات التسجيل وإصدار رمز الـ OTP...', 'info');
+        showToast('جاري تسجيل بيانات الحساب وإرسالها للمراجعة...', 'info');
         const payload = {
             full_name: name,
             phone_number: phone,
@@ -351,92 +383,66 @@ async function handleRegisterSubmit(e) {
         };
 
         const registerRes = await window.authApi.register(payload);
-        showToast('تم تسجيل حسابك بنجاح! تم إرسال كود الـ OTP إلى الواتساب.', 'success');
+        showToast('تم إرسال طلب إنشاء الحساب بنجاح! حسابك قيد مراجعة الـ CEO.', 'success');
 
         // Increment dynamic registration counter
         recordNewStudentRegistration();
 
-        // Save pending phone & open OTP modal
-        window.CONFIG.setPendingPhone(phone);
-        showOtpVerificationModal(phone);
+        // Clear inputs
+        document.getElementById('reg-name').value = '';
+        document.getElementById('reg-phone').value = '';
+        document.getElementById('reg-faculty').value = '';
+        document.getElementById('reg-academic-year').value = '';
+        document.getElementById('reg-pass').value = '';
+        document.getElementById('reg-confirm').value = '';
+        cardFileInput.value = '';
+        const previewContainer = document.getElementById('reg-card-preview-container');
+        if (previewContainer) previewContainer.classList.add('hidden');
+
+        // Show pending confirmation modal
+        const pendingModal = document.getElementById('reg-pending-modal');
+        if (pendingModal) {
+            pendingModal.classList.remove('hidden');
+        } else {
+            showLogin();
+        }
     } catch (err) {
         console.error('Registration error:', err);
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<span>تسجيل الحساب وإرسال رمز التحقق</span>';
+            submitBtn.innerHTML = '<span>إنشاء الحساب وإرسال للمراجعة</span>';
         }
     }
 }
 
+function closeRegPendingModalAndLogin() {
+    const modal = document.getElementById('reg-pending-modal');
+    if (modal) modal.classList.add('hidden');
+    showLogin();
+}
+
 /**
- * OTP Verification Flow
+ * Fallback helpers
  */
 function showOtpVerificationModal(phone) {
-    const targetPhone = phone || window.CONFIG.getPendingPhone() || '';
-    const phoneDisplay = document.getElementById('otp-phone-display');
-    if (phoneDisplay) phoneDisplay.innerText = targetPhone;
-
-    const modal = document.getElementById('otp-view');
-    if (modal) modal.classList.remove('hidden');
-
-    const otpInput = document.getElementById('otp-code-input');
-    if (otpInput) {
-        otpInput.value = '';
-        otpInput.focus();
-    }
+    const pendingModal = document.getElementById('reg-pending-modal');
+    if (pendingModal) pendingModal.classList.remove('hidden');
 }
 
 function closeOtpModal() {
-    const modal = document.getElementById('otp-view');
+    const modal = document.getElementById('otp-view') || document.getElementById('reg-pending-modal');
     if (modal) modal.classList.add('hidden');
 }
 
 async function handleOtpSubmit(e) {
-    e.preventDefault();
-    const phone = window.CONFIG.getPendingPhone() || document.getElementById('login-phone')?.value;
-    const code = document.getElementById('otp-code-input').value;
-    const btn = document.getElementById('btn-otp-verify');
-
-    if (!phone) {
-        showToast('رقم الهاتف غير محدد. يرجى إعادة إدخال رقم الهاتف.', 'error');
-        return;
-    }
-
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التحقق...';
-    }
-
-    try {
-        const res = await window.authApi.verifyOtp(phone, code);
-        showToast('تم تفعيل وتأكيد حسابك بنجاح! يمكنك الآن تسجيل الدخول.', 'success');
-        closeOtpModal();
-        window.CONFIG.setPendingPhone(null);
-        showLogin();
-    } catch (err) {
-        console.error('OTP Verification Error:', err);
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = 'تأكيد وتفعيل الحساب';
-        }
-    }
+    if (e) e.preventDefault();
+    closeOtpModal();
+    showLogin();
 }
 
 async function handleResendOtp() {
-    const phone = window.CONFIG.getPendingPhone();
-    if (!phone) {
-        showToast('يرجى كتابة رقم الهاتف أولاً.', 'error');
-        return;
-    }
-
-    try {
-        await window.authApi.resendOtp(phone);
-        showToast('تم إعادة إرسال كود التحقق بنجاح إلى الواتساب.', 'success');
-    } catch (err) {
-        console.error('Resend OTP error:', err);
-    }
+    showToast('تم إرسال بياناتك للمراجعة من قبل الإدارة.', 'info');
 }
 
 // ============================================================
@@ -1171,18 +1177,38 @@ async function loadCeoUsers() {
     tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري تحميل المستخدمين...</td></tr>';
 
     const roleFilter = document.getElementById('ceo-users-role-filter')?.value || null;
+    const statusFilter = document.getElementById('ceo-users-status-filter')?.value || '';
 
     try {
-        const res = await window.usersApi.list({ role: roleFilter, page_size: 50 });
-        const items = res?.items || [];
+        const params = { page_size: 100 };
+        if (roleFilter) params.role = roleFilter;
+        if (statusFilter === 'active') params.is_active = true;
+        if (statusFilter === 'inactive') params.is_active = false;
+
+        const res = await window.usersApi.list(params);
+        let items = res?.items || [];
+
+        // Apply local filter
+        if (statusFilter === 'pending') {
+            items = items.filter(u => !u.is_active);
+        } else if (statusFilter === 'active') {
+            items = items.filter(u => Boolean(u.is_active));
+        } else if (statusFilter === 'inactive') {
+            items = items.filter(u => !u.is_active);
+        }
 
         if (items.length > 0) {
             tbody.innerHTML = '';
             items.forEach(u => {
-                const isActive = u.is_active;
+                const isActive = Boolean(u.is_active);
+                const facultyInfo = u.faculty ? `${u.faculty} ${u.academic_year ? `(${u.academic_year})` : ''}` : 'غير محدد';
+
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
-                        <td class="p-4 font-black text-slate-800 dark:text-white">${u.full_name}</td>
+                        <td class="p-4 font-black text-slate-800 dark:text-white">
+                            ${u.full_name}
+                            ${!isActive && u.role === 'STUDENT' ? '<span class="mr-2 inline-block px-1.5 py-0.5 bg-amber-500/20 text-amber-500 rounded text-[9px] font-bold">قيد الاعتماد</span>' : ''}
+                        </td>
                         <td class="p-4 font-mono font-bold text-slate-600 dark:text-slate-300">${u.phone_number}</td>
                         <td class="p-4">
                             <span class="px-2 py-0.5 rounded-md text-[10px] font-black ${
@@ -1192,21 +1218,34 @@ async function loadCeoUsers() {
                                 ${u.role}
                             </span>
                         </td>
+                        <td class="p-4 text-xs font-bold text-slate-500 dark:text-slate-400">${facultyInfo}</td>
                         <td class="p-4">
-                            <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${isActive ? 'bg-emerald-500/15 text-emerald-500' : 'bg-rose-500/15 text-rose-500'}">
-                                ${isActive ? 'نشط' : 'معطل'}
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${
+                                isActive 
+                                    ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/20' 
+                                    : 'bg-amber-500/15 text-amber-500 border border-amber-500/20'
+                            }">
+                                ${isActive ? '🟢 معتمد ونشط' : '🟡 قيد المراجعة (Pending)'}
                             </span>
                         </td>
-                        <td class="p-4 text-xs font-bold ${u.is_phone_verified ? 'text-emerald-500' : 'text-amber-500'}">
-                            ${u.is_phone_verified ? 'مؤكد' : 'غير مؤكد'}
-                        </td>
-                        <td class="p-4 text-center space-x-1 flex items-center justify-center gap-1.5 flex-wrap">
-                            <button onclick="viewCeoUserDetails(${u.id})" class="bg-blue-500/10 text-blue-500 font-bold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-blue-500 hover:text-white border-0 cursor-pointer">
-                                <i class="fa-solid fa-id-card"></i> الملف
-                            </button>
-                            <button onclick="toggleUserStatus(${u.id}, ${isActive})" class="${isActive ? 'bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white'} font-bold text-[10px] px-2.5 py-1.5 rounded-lg border-0 cursor-pointer">
-                                ${isActive ? 'تعطيل' : 'تنشيط'}
-                            </button>
+                        <td class="p-4 text-center">
+                            <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                                <button onclick="viewCeoUserDetails(${u.id})" title="عرض تفاصيل الحساب والكارنيه" class="bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg fast-transition border-0 cursor-pointer">
+                                    <i class="fa-solid fa-id-card"></i> الكارنيه / الملف
+                                </button>
+                                ${!isActive ? `
+                                    <button onclick="confirmCeoUser(${u.id})" title="اعتماد وتأكيد الحساب" class="bg-emerald-500 text-white hover:bg-emerald-600 font-bold text-[10px] px-2.5 py-1.5 rounded-lg fast-transition shadow-sm border-0 cursor-pointer flex items-center gap-1">
+                                        <i class="fa-solid fa-check"></i> اعتماد
+                                    </button>
+                                    <button onclick="rejectCeoUser(${u.id})" title="رفض الحساب" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg fast-transition border-0 cursor-pointer flex items-center gap-1">
+                                        <i class="fa-solid fa-xmark"></i> رفض
+                                    </button>
+                                ` : `
+                                    <button onclick="rejectCeoUser(${u.id})" title="تعطيل أو إلغاء اعتماد الحساب" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg fast-transition border-0 cursor-pointer flex items-center gap-1">
+                                        <i class="fa-solid fa-ban"></i> تعطيل
+                                    </button>
+                                `}
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -1216,6 +1255,26 @@ async function loadCeoUsers() {
         }
     } catch (e) {
         tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل بيانات المستخدمين</td></tr>';
+    }
+}
+
+async function confirmCeoUser(userId) {
+    try {
+        await window.usersApi.confirmUser(userId);
+        showToast('تم اعتماد وتأكيد الحساب بنجاح! يمكن للطالب الآن تسجيل الدخول.', 'success');
+        loadCeoUsers();
+    } catch (e) {
+        console.error('Confirm user error:', e);
+    }
+}
+
+async function rejectCeoUser(userId) {
+    try {
+        await window.usersApi.rejectUser(userId);
+        showToast('تم رفض / تعطيل الحساب بنجاح.', 'info');
+        loadCeoUsers();
+    } catch (e) {
+        console.error('Reject user error:', e);
     }
 }
 
@@ -1229,41 +1288,69 @@ async function viewCeoUserDetails(userId) {
         document.getElementById('det-role').innerText = user.role || '--';
         document.getElementById('det-gender').innerText = user.gender === 'MALE' ? 'ذكر' : 'أنثى';
         document.getElementById('det-faculty').innerText = `${user.faculty || '--'} (${user.academic_year || '--'})`;
-        document.getElementById('det-phone-verified').innerText = user.is_phone_verified ? 'تم التأكيد بالـ OTP' : 'قيد الانتظار';
+        
+        const statusElem = document.getElementById('det-phone-verified');
+        if (statusElem) {
+            statusElem.innerHTML = user.is_active 
+                ? '<span class="text-emerald-500 font-bold">🟢 معتمد ونشط</span>' 
+                : '<span class="text-amber-500 font-bold">🟡 قيد المراجعة والاعتماد (Pending)</span>';
+        }
 
         // Actions
         const actionsElem = document.getElementById('det-modal-actions');
-        actionsElem.innerHTML = `
-            <button onclick="toggleUserStatus(${user.id}, ${user.is_active}); closeModal('view-student-modal');" class="flex-1 ${user.is_active ? 'bg-rose-500' : 'bg-emerald-500'} text-white font-bold py-2 rounded-xl text-xs border-0 cursor-pointer">
-                ${user.is_active ? 'تعطيل الحساب' : 'تنشيط الحساب'}
-            </button>
-        `;
+        if (actionsElem) {
+            if (!user.is_active) {
+                actionsElem.innerHTML = `
+                    <button onclick="confirmCeoUser(${user.id}); closeModal('view-student-modal');" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs border-0 cursor-pointer shadow-md flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-check"></i> تأكيد واعتماد الحساب
+                    </button>
+                    <button onclick="rejectCeoUser(${user.id}); closeModal('view-student-modal');" class="flex-1 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 font-bold py-2.5 rounded-xl text-xs border-0 cursor-pointer flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-xmark"></i> رفض الطلب
+                    </button>
+                `;
+            } else {
+                actionsElem.innerHTML = `
+                    <button onclick="rejectCeoUser(${user.id}); closeModal('view-student-modal');" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 rounded-xl text-xs border-0 cursor-pointer shadow-md flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-ban"></i> إلغاء الاعتماد / تعطيل الحساب
+                    </button>
+                `;
+            }
+        }
 
-        // Card image
+        // Card image & open link
         const imgElem = document.getElementById('det-card-img');
         const fallbackElem = document.getElementById('det-card-fallback');
+        const openLink = document.getElementById('det-card-open-link');
 
         if (user.role === 'STUDENT') {
             try {
                 const blob = await window.usersApi.getIdCard(userId);
                 if (blob instanceof Blob) {
-                    imgElem.src = URL.createObjectURL(blob);
+                    const objectUrl = URL.createObjectURL(blob);
+                    imgElem.src = objectUrl;
                     imgElem.classList.remove('hidden');
                     fallbackElem.classList.add('hidden');
+                    if (openLink) {
+                        openLink.href = objectUrl;
+                        openLink.classList.remove('hidden');
+                    }
                 } else {
                     imgElem.classList.add('hidden');
-                    fallbackElem.innerText = 'لا توجد صورة كارنيه متاحة';
+                    fallbackElem.innerText = 'لا توجد صورة كارنيه أو بطاقة ترشح متاحة';
                     fallbackElem.classList.remove('hidden');
+                    if (openLink) openLink.classList.add('hidden');
                 }
             } catch (err) {
                 imgElem.classList.add('hidden');
-                fallbackElem.innerText = 'صورة الكارنيه غير متوفرة أو محفوظة كمرجع محلي';
+                fallbackElem.innerText = 'صورة الكارنيه / بطاقة الترشح غير متوفرة أو محفوظة كمرجع محلي';
                 fallbackElem.classList.remove('hidden');
+                if (openLink) openLink.classList.add('hidden');
             }
         } else {
             imgElem.classList.add('hidden');
             fallbackElem.innerText = 'لا يتطلب رفع كارنيه لهذا الحساب';
             fallbackElem.classList.remove('hidden');
+            if (openLink) openLink.classList.add('hidden');
         }
 
         const modal = document.getElementById('view-student-modal');
