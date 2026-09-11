@@ -807,13 +807,14 @@
                                     <th class="p-4">الاسم وبيانات الطالب</th>
                                     <th class="p-4">رقم الهاتف</th>
                                     <th class="p-4">الرتبة</th>
+                                    <th class="p-4">الجامعة المقيد بها</th>
                                     <th class="p-4">الكلية / الفرقة</th>
                                     <th class="p-4">حالة الحساب</th>
                                     <th class="p-4 text-center">إجراءات الاعتماد (CEO)</th>
                                 </tr>
                             </thead>
                             <tbody id="ceo-users-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="6" class="p-6 text-center text-slate-400">جاري تحميل المستخدمين...</td></tr>
+                                <tr><td colspan="7" class="p-6 text-center text-slate-400">جاري تحميل المستخدمين...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1100,10 +1101,14 @@
                         <p id="det-gender" class="font-bold text-slate-800 dark:text-white mt-1"></p>
                     </div>
                     <div>
+                        <p class="text-slate-400 font-bold">الجامعة المقيد بها</p>
+                        <p id="det-university" class="font-bold text-brand-primary dark:text-[#6AB9FF] mt-1 flex items-center gap-1.5"><i class="fa-solid fa-graduation-cap"></i> <span>--</span></p>
+                    </div>
+                    <div>
                         <p class="text-slate-400 font-bold">الكلية والفرقة</p>
                         <p id="det-faculty" class="font-bold text-slate-800 dark:text-white mt-1"></p>
                     </div>
-                    <div>
+                    <div class="col-span-2">
                         <p class="text-slate-400 font-bold">حالة الحساب</p>
                         <p id="det-phone-verified" class="font-bold mt-1"></p>
                     </div>

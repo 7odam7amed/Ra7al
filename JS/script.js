@@ -1281,6 +1281,29 @@ async function loadCeoUsers() {
     }
 }
 
+// Helper function to resolve university name
+function getUniversityName(u) {
+    if (!u) return 'غير محدد';
+    if (u.university && typeof u.university === 'object' && u.university.name) {
+        return u.university.name;
+    }
+    if (u.university_name && typeof u.university_name === 'string') {
+        return u.university_name;
+    }
+    if (typeof u.university === 'string' && u.university.trim()) {
+        return u.university;
+    }
+    const uniId = u.university_id || u.universityId;
+    if (uniId) {
+        const found = cachedUniversities.find(uni => uni.id === parseInt(uniId) || uni.id === uniId);
+        if (found && found.name) return found.name;
+        if (uniId == 1) return 'جامعة أسيوط الأهلية';
+        if (uniId == 2) return 'جامعة سفينكس';
+        return `جامعة #${uniId}`;
+    }
+    return 'غير محدد';
+}
+
 function filterCeoUsersList() {
     const tbody = document.getElementById('ceo-users-tbody');
     if (!tbody) return;
@@ -1305,13 +1328,14 @@ function filterCeoUsersList() {
         items = items.filter(u => isUserPending(u) || !isUserActive(u));
     }
 
-    // Filter by Search Query (Name or Phone)
+    // Filter by Search Query (Name, Phone, Faculty, or University)
     if (searchQuery) {
         items = items.filter(u => {
             const name = (u.full_name || '').toLowerCase();
             const phone = (u.phone_number || '').toLowerCase();
             const faculty = (u.faculty || '').toLowerCase();
-            return name.includes(searchQuery) || phone.includes(searchQuery) || faculty.includes(searchQuery);
+            const uni = getUniversityName(u).toLowerCase();
+            return name.includes(searchQuery) || phone.includes(searchQuery) || faculty.includes(searchQuery) || uni.includes(searchQuery);
         });
     }
 
@@ -1360,6 +1384,7 @@ function renderCeoUsersTable(items) {
             const isPending = isUserPending(u);
             const isActive = !isPending && isUserActive(u);
             const userRole = (u.role || 'STUDENT').toString().toUpperCase();
+            const uniName = getUniversityName(u);
             const facultyInfo = u.faculty ? `${u.faculty} ${u.academic_year ? `(${u.academic_year})` : ''}` : 'غير محدد';
 
             tbody.innerHTML += `
@@ -1379,6 +1404,12 @@ function renderCeoUsersTable(items) {
                         }">
                             ${userRole === 'STUDENT' ? 'طالب (STUDENT)' : (userRole === 'SUPERVISOR' ? 'مشرف (SUPERVISOR)' : userRole)}
                         </span>
+                    </td>
+                    <td class="p-4">
+                        <div class="inline-flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg text-xs">
+                            <i class="fa-solid fa-graduation-cap text-[#0B5DAA] dark:text-[#6AB9FF]"></i>
+                            <span>${uniName}</span>
+                        </div>
                     </td>
                     <td class="p-4 text-xs font-bold text-slate-600 dark:text-slate-400">${facultyInfo}</td>
                     <td class="p-4">
@@ -1419,7 +1450,7 @@ function renderCeoUsersTable(items) {
             `;
         });
     } else {
-        tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">لا يوجد مستخدمين مطابقين للبحث أو الفلتر المحدد</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400 font-bold">لا يوجد مستخدمين مطابقين للبحث أو الفلتر المحدد</td></tr>';
     }
 }
 
@@ -1457,6 +1488,10 @@ async function viewCeoUserDetails(userId) {
         document.getElementById('det-phone').innerText = user.phone_number || '--';
         document.getElementById('det-role').innerText = user.role || '--';
         document.getElementById('det-gender').innerText = user.gender === 'MALE' ? 'ذكر' : 'أنثى';
+        const detUni = document.getElementById('det-university');
+        if (detUni) {
+            detUni.innerHTML = `<i class="fa-solid fa-graduation-cap"></i> <span>${getUniversityName(user)}</span>`;
+        }
         document.getElementById('det-faculty').innerText = `${user.faculty || '--'} (${user.academic_year || '--'})`;
         
         const statusElem = document.getElementById('det-phone-verified');
