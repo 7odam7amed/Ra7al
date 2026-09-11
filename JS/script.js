@@ -9,6 +9,8 @@ let cachedBuses = [];
 let cachedSupervisors = [];
 let activeSubscriptionQR = null;
 let currentSupervisorTripId = null;
+let studentAvailableTrips = new Map();
+let selectedStudentTrip = null;
 
 // Rejected phone helpers for account deactivation / rejection enforcement
 function getRejectedPhoneSet() {
@@ -677,6 +679,7 @@ async function loadAvailableTripsForStudent() {
         const res = await window.reservationsApi.listAvailableTrips({ page_size: 50 });
         // يدعم الاستجابة المباشرة كمصفوفة أو الاستجابة المغلفة داخل items/data.
         const trips = Array.isArray(res) ? res : (res?.items || res?.data || []);
+        studentAvailableTrips = new Map(trips.map(trip => [Number(trip.id), trip]));
 
         if (trips.length > 0) {
             tbody.innerHTML = '';
@@ -706,7 +709,7 @@ async function loadAvailableTripsForStudent() {
                         </td>
                         <td class="p-4 font-mono font-bold text-slate-700 dark:text-slate-300">${t.fare_amount} EGP</td>
                         <td class="p-4 text-center">
-                            <button onclick="openBuySubscriptionModal(${Number(routeId) || 'null'}, ${Number(t.id)})" class="btn-gradient text-white text-[11px] font-black px-4 py-1.5 rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer shadow-sm">
+                            <button onclick="openBuySubscriptionModal(${Number(t.id)})" class="btn-gradient text-white text-[11px] font-black px-4 py-1.5 rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer shadow-sm">
                                 احجز الآن
                             </button>
                         </td>
@@ -876,19 +879,57 @@ async function handleSubmitPaymentProof(e) {
 /**
  * Buy Subscription Workflow
  */
-async function openBuySubscriptionModal(selectedRouteId = null, selectedTripId = null) {
+function populateBuySubscriptionPickupPoints(route) {
+    const outboundSelect = document.getElementById('buy-sub-outbound-pickup');
+    const returnSelect = document.getElementById('buy-sub-return-pickup');
+    const pickupPoints = [];
+
+    if (route?.origin_station) {
+        pickupPoints.push({ id: route.origin_station.id, label: `${route.origin_station.name} (محطة الانطلاق)` });
+    }
+    (route?.stops || []).forEach(stop => {
+        if (stop.station) {
+            pickupPoints.push({ id: stop.station.id, label: `${stop.station.name} (نقطة #${stop.stop_order})` });
+        }
+    });
+    if (route?.destination_station) {
+        pickupPoints.push({ id: route.destination_station.id, label: `${route.destination_station.name} (محطة الوصول)` });
+    }
+
+    const optionsHtml = pickupPoints.length
+        ? pickupPoints.map(point => `<option value="${point.id}">${point.label}</option>`).join('')
+        : '<option value="">لا توجد نقاط تجمع متاحة لهذه الرحلة</option>';
+
+    [outboundSelect, returnSelect].forEach(select => {
+        if (select) {
+            select.innerHTML = optionsHtml;
+            select.disabled = pickupPoints.length === 0;
+        }
+    });
+    return pickupPoints.length > 0;
+}
+
+async function openBuySubscriptionModal(selectedTripId = null) {
     const modal = document.getElementById('buy-subscription-modal');
     if (!modal) return;
 
     try {
-        // Load active routes
-        const routesRes = await window.routesApi.list({ is_active: true, page_size: 100 });
+        selectedStudentTrip = studentAvailableTrips.get(Number(selectedTripId)) || null;
+        const selectedRoute = selectedStudentTrip?.route || null;
         const routeSelect = document.getElementById('buy-sub-route-select');
-        routeSelect.innerHTML = '<option value="">اختر خط السير</option>';
-        const routes = Array.isArray(routesRes) ? routesRes : (routesRes?.items || routesRes?.data || []);
-        routes.forEach(r => {
-            routeSelect.innerHTML += `<option value="${r.id}">${r.route_number} - ${r.name}</option>`;
-        });
+        const routeId = selectedStudentTrip?.route_id || selectedRoute?.id;
+
+        if (!selectedStudentTrip || !routeId) {
+            showToast('تعذر تحديد بيانات الرحلة. حدّث قائمة الرحلات ثم حاول مجددًا.', 'error');
+            return;
+        }
+
+        // مسارات /routes مخصصة للإدارة والمشرفين حسب الـ API؛ الطالب يحصل على المسار
+        // المسموح له به من استجابة /reservations/available-trips نفسها.
+        routeSelect.innerHTML = `<option value="${routeId}">${selectedRoute?.route_number ? `${selectedRoute.route_number} - ` : ''}${selectedRoute?.name || `خط #${routeId}`}</option>`;
+        routeSelect.value = String(routeId);
+        routeSelect.disabled = true;
+        const hasPickupPoints = populateBuySubscriptionPickupPoints(selectedRoute);
 
         // Load active plans
         const plansRes = await window.subscriptionPlansApi.listAvailable();
@@ -899,21 +940,19 @@ async function openBuySubscriptionModal(selectedRouteId = null, selectedTripId =
         plans.forEach(p => {
             planSelect.innerHTML += `<option value="${p.id}">${p.name} (${p.price} EGP / ${p.duration_days} يوم)</option>`;
         });
+        if (!plans.length) {
+            planSelect.innerHTML += '<option value="" disabled>لا توجد باقات نشطة حاليًا</option>';
+        }
 
         const tripContext = document.getElementById('buy-sub-trip-context');
-        if (selectedRouteId && [...routeSelect.options].some(option => Number(option.value) === Number(selectedRouteId))) {
-            routeSelect.value = String(selectedRouteId);
-            await onBuySubRouteChange();
+        if (tripContext) {
+            const departure = new Date(selectedStudentTrip.departure_time).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+            tripContext.classList.remove('hidden');
+            tripContext.innerHTML = `<i class="fa-solid fa-bus ml-1 text-brand-primary"></i> الرحلة المختارة: <strong>${selectedRoute?.name || `خط #${routeId}`}</strong> — ${departure}${hasPickupPoints ? '' : '<br><span class="text-rose-500">لم تُضف الإدارة نقاط تجمع لهذه الرحلة بعد.</span>'}`;
         }
 
-        if (tripContext) {
-            tripContext.classList.toggle('hidden', !selectedTripId);
-            if (selectedTripId) {
-                tripContext.innerHTML = '<i class="fa-solid fa-bus ml-1 text-brand-primary"></i> تم اختيار الرحلة. أكمل بيانات الاشتراك لتأكيد الحجز على خط السير المحدد.';
-            } else {
-                tripContext.textContent = '';
-            }
-        }
+        const startDate = document.getElementById('buy-sub-start-date');
+        if (startDate && selectedStudentTrip.departure_time) startDate.value = selectedStudentTrip.departure_time.slice(0, 10);
 
         modal.classList.remove('hidden');
     } catch (e) {
@@ -922,34 +961,7 @@ async function openBuySubscriptionModal(selectedRouteId = null, selectedTripId =
 }
 
 async function onBuySubRouteChange() {
-    const routeId = document.getElementById('buy-sub-route-select').value;
-    const outboundSelect = document.getElementById('buy-sub-outbound-pickup');
-    const returnSelect = document.getElementById('buy-sub-return-pickup');
-
-    if (!routeId) return;
-
-    try {
-        const route = await window.routesApi.getById(routeId);
-        const stops = await window.routesApi.getStops(routeId);
-
-        let optionsHtml = '';
-        if (route.origin_station) {
-            optionsHtml += `<option value="${route.origin_station.id}">${route.origin_station.name} (محطة الانطلاق)</option>`;
-        }
-        (stops || []).forEach(s => {
-            if (s.station) {
-                optionsHtml += `<option value="${s.station.id}">${s.station.name} (نقطة #${s.stop_order})</option>`;
-            }
-        });
-        if (route.destination_station) {
-            optionsHtml += `<option value="${route.destination_station.id}">${route.destination_station.name} (محطة الوصول)</option>`;
-        }
-
-        if (outboundSelect) outboundSelect.innerHTML = optionsHtml;
-        if (returnSelect) returnSelect.innerHTML = optionsHtml;
-    } catch (e) {
-        console.warn('Could not load route stops:', e);
-    }
+    if (selectedStudentTrip?.route) populateBuySubscriptionPickupPoints(selectedStudentTrip.route);
 }
 
 function toggleReturnPickupSelector() {
