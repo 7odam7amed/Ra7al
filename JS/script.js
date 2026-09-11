@@ -680,11 +680,23 @@ async function loadAvailableTripsForStudent() {
         if (trips.length > 0) {
             tbody.innerHTML = '';
             trips.forEach(t => {
-                const routeName = t.route?.name || `خط #${t.route_id}`;
+                const routeId = t.route_id || t.route?.id || null;
+                const routeName = t.route?.name || `خط #${routeId || '--'}`;
                 const depTime = new Date(t.departure_time).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' });
+                const arrivalTime = t.estimated_arrival_time
+                    ? new Date(t.estimated_arrival_time).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+                    : null;
+                const busPlate = t.bus?.license_plate || null;
+                const tripDetails = [
+                    arrivalTime ? `الوصول المتوقع: ${arrivalTime}` : null,
+                    busPlate ? `الحافلة: ${busPlate}` : null
+                ].filter(Boolean).join(' • ');
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
-                        <td class="p-4 font-black text-slate-800 dark:text-white">${routeName}</td>
+                        <td class="p-4">
+                            <p class="font-black text-slate-800 dark:text-white">${routeName}</p>
+                            ${tripDetails ? `<p class="mt-1 text-[10px] text-slate-400">${tripDetails}</p>` : ''}
+                        </td>
                         <td class="p-4 font-mono font-bold text-brand-primary dark:text-brand-secondary">${depTime}</td>
                         <td class="p-4 font-bold">
                             <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${t.available_seats > 5 ? 'bg-emerald-500/15 text-emerald-500' : 'bg-rose-500/15 text-rose-500'}">
@@ -693,7 +705,7 @@ async function loadAvailableTripsForStudent() {
                         </td>
                         <td class="p-4 font-mono font-bold text-slate-700 dark:text-slate-300">${t.fare_amount} EGP</td>
                         <td class="p-4 text-center">
-                            <button onclick="bookSingleTrip(${t.id})" class="btn-gradient text-white text-[11px] font-black px-4 py-1.5 rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer shadow-sm">
+                            <button onclick="openBuySubscriptionModal(${Number(routeId) || 'null'}, ${Number(t.id)})" class="btn-gradient text-white text-[11px] font-black px-4 py-1.5 rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer shadow-sm">
                                 احجز الآن
                             </button>
                         </td>
@@ -860,7 +872,7 @@ async function handleSubmitPaymentProof(e) {
 /**
  * Buy Subscription Workflow
  */
-async function openBuySubscriptionModal() {
+async function openBuySubscriptionModal(selectedRouteId = null, selectedTripId = null) {
     const modal = document.getElementById('buy-subscription-modal');
     if (!modal) return;
 
@@ -880,6 +892,21 @@ async function openBuySubscriptionModal() {
         (plansRes || []).forEach(p => {
             planSelect.innerHTML += `<option value="${p.id}">${p.name} (${p.price} EGP / ${p.duration_days} يوم)</option>`;
         });
+
+        const tripContext = document.getElementById('buy-sub-trip-context');
+        if (selectedRouteId && [...routeSelect.options].some(option => Number(option.value) === Number(selectedRouteId))) {
+            routeSelect.value = String(selectedRouteId);
+            await onBuySubRouteChange();
+        }
+
+        if (tripContext) {
+            tripContext.classList.toggle('hidden', !selectedTripId);
+            if (selectedTripId) {
+                tripContext.innerHTML = '<i class="fa-solid fa-bus ml-1 text-brand-primary"></i> تم اختيار الرحلة. أكمل بيانات الاشتراك لتأكيد الحجز على خط السير المحدد.';
+            } else {
+                tripContext.textContent = '';
+            }
+        }
 
         modal.classList.remove('hidden');
     } catch (e) {
@@ -2986,12 +3013,3 @@ function initIntersectionObservers() {
         checkInitialVisibility();
     }
 }
-
-let btn_plus = document.getElementById("btn-plus");
-let plus = document.querySelector("plus")
-
-btn_plus.addEventListener("click",function(){
-
-    plus.innerHTML
-
-})
