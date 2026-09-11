@@ -676,7 +676,7 @@
         <!-- ================= 7) CEO DASHBOARD ================= -->
         <section id="ceo-view" class="hidden min-h-[600px] flex view-transition">
             <!-- Sidebar Navigation -->
-            <aside class="w-64 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col shrink-0">
+            <aside class="w-64 bg-black dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col shrink-0">
                 <div class="p-6 border-b border-slate-200 dark:border-slate-800">
                     <h3 class="text-xl font-black text-[#0B5DAA] tracking-wider poppins leading-loose">RAHAAL</h3>
                     <p class="text-[10px] text-slate-400 font-bold mt-1">لوحة الإدارة التنفيذية لرحال</p>
@@ -686,9 +686,12 @@
                         <i class="fa-solid fa-chart-simple text-center w-4"></i>
                         <span>لوحة الإحصائيات</span>
                     </button>
-                    <button onclick="switchCeoTab('ceo-users', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
-                        <i class="fa-solid fa-users text-center w-4"></i>
-                        <span>إدارة المستخدمين والطلاب</span>
+                    <button onclick="switchCeoTab('ceo-users', this)" class="ceo-tab-btn w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-users text-center w-4"></i>
+                            <span>إدارة المستخدمين والطلاب</span>
+                        </div>
+                        <span id="ceo-pending-badge" class="hidden px-2 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-black animate-pulse">0</span>
                     </button>
                     <button onclick="switchCeoTab('ceo-supervisors', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-0 text-right cursor-pointer bg-transparent">
                         <i class="fa-solid fa-user-shield text-center w-4"></i>
@@ -734,57 +737,74 @@
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
                     <div>
                         <h1 class="text-2xl font-black">نظام إدارة العمليات الكبرى</h1>
-                        <p class="text-xs text-slate-400">راقب ونظم حركة الأسطول والاشتراكات والمدفوعات مباشرة عبر الـ Backend.</p>
+                        <p class="text-xs text-slate-400">راقب ونظم حركة الأسطول والاشتراكات والمدفوعات واعتماد الطلاب الجدد مباشرة.</p>
                     </div>
                 </div>
 
                 <!-- SUBVIEW 1: Main Overview & Stats -->
                 <div id="ceo-main-view" class="ceo-subview space-y-8">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div class="glass-card p-6 rounded-2xl">
-                            <p class="text-xs text-slate-400 font-bold">إجمالي المستخدمين</p>
-                            <h3 id="stat-ceo-users-count" class="text-3xl font-black text-brand-primary mt-1">0</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div class="glass-card p-5 rounded-2xl border border-amber-500/30 bg-amber-500/5 cursor-pointer hover:scale-[1.02] transition" onclick="switchCeoTab('ceo-users'); document.getElementById('ceo-users-status-filter').value='pending'; loadCeoUsers();" title="انقر لعرض الطلاب بانتظار الاعتماد">
+                            <div class="flex items-center justify-between">
+                                <p class="text-[11px] text-amber-500 font-bold">طلاب قيد الاعتماد</p>
+                                <span class="text-[10px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded font-black"><i class="fa-solid fa-clock"></i> Pending</span>
+                            </div>
+                            <h3 id="stat-ceo-pending-count" class="text-2xl font-black text-amber-500 mt-2">0</h3>
                         </div>
-                        <div class="glass-card p-6 rounded-2xl">
-                            <p class="text-xs text-slate-400 font-bold">عدد الحافلات بالأسطول</p>
-                            <h3 id="stat-ceo-buses-count" class="text-3xl font-black text-brand-primary mt-1">0</h3>
+                        <div class="glass-card p-5 rounded-2xl">
+                            <p class="text-[11px] text-slate-400 font-bold">إجمالي المستخدمين</p>
+                            <h3 id="stat-ceo-users-count" class="text-2xl font-black text-brand-primary mt-2">0</h3>
                         </div>
-                        <div class="glass-card p-6 rounded-2xl">
-                            <p class="text-xs text-slate-400 font-bold">الرحلات المجدولة</p>
-                            <h3 id="stat-ceo-trips-count" class="text-3xl font-black text-[#0B5DAA] mt-1">0</h3>
+                        <div class="glass-card p-5 rounded-2xl">
+                            <p class="text-[11px] text-slate-400 font-bold">عدد الحافلات بالأسطول</p>
+                            <h3 id="stat-ceo-buses-count" class="text-2xl font-black text-brand-primary mt-2">0</h3>
                         </div>
-                        <div class="glass-card p-6 rounded-2xl">
-                            <p class="text-xs text-slate-400 font-bold">الاشتراكات النشطة</p>
-                            <h3 id="stat-ceo-subs-count" class="text-3xl font-black text-emerald-500 mt-1">0</h3>
+                        <div class="glass-card p-5 rounded-2xl">
+                            <p class="text-[11px] text-slate-400 font-bold">الرحلات المجدولة</p>
+                            <h3 id="stat-ceo-trips-count" class="text-2xl font-black text-[#0B5DAA] mt-2">0</h3>
+                        </div>
+                        <div class="glass-card p-5 rounded-2xl">
+                            <p class="text-[11px] text-slate-400 font-bold">الاشتراكات النشطة</p>
+                            <h3 id="stat-ceo-subs-count" class="text-2xl font-black text-emerald-500 mt-2">0</h3>
                         </div>
                     </div>
                 </div>
 
                 <!-- SUBVIEW 2: Users Management -->
                 <div id="ceo-users-view" class="ceo-subview hidden space-y-6">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <h3 class="font-bold text-lg">إدارة واعتماد حسابات المستخدمين والطلاب</h3>
-                        <div class="flex flex-wrap gap-2">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-3">
+                                <h3 class="font-bold text-lg">إدارة واعتماد حسابات المستخدمين والطلاب</h3>
+                                <span id="ceo-users-summary-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500"></span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-0.5">مراجعة الطلاب الجدد، تدقيق الكارنيهات الجامعية وتأكيد الحسابات</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div class="relative">
+                                <input type="text" id="ceo-users-search" oninput="filterCeoUsersList()" placeholder="بحث بالاسم أو رقم الهاتف..." class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pr-8 pl-3 py-2 text-xs focus:outline-none w-48 sm:w-56">
+                                <i class="fa-solid fa-magnifying-glass absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            </div>
                             <select id="ceo-users-role-filter" onchange="loadCeoUsers()" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
                                 <option value="">كل الرتب (All Roles)</option>
                                 <option value="STUDENT">طالب (STUDENT)</option>
                                 <option value="SUPERVISOR">مشرف (SUPERVISOR)</option>
                                 <option value="CEO">المدير التنفيذي (CEO)</option>
                             </select>
-                            <select id="ceo-users-status-filter" onchange="loadCeoUsers()" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                            <select id="ceo-users-status-filter" onchange="loadCeoUsers()" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none font-bold">
                                 <option value="">كل الحالات (All Status)</option>
-                                <option value="pending">🟡 قيد المراجعة والاعتماد (Pending)</option>
-                                <option value="active">🟢 معتمد ونشط (Active)</option>
-                                <option value="inactive">🔴 معطل / مرفوض (Inactive)</option>
+                                <option value="pending" class="text-amber-500 font-bold">🟡 قيد المراجعة والاعتماد (Pending)</option>
+                                <option value="active" class="text-emerald-500 font-bold">🟢 معتمد ونشط (Active)</option>
+                                <option value="inactive" class="text-rose-500 font-bold">🔴 معطل / مرفوض (Inactive)</option>
                             </select>
-                            <button onclick="loadCeoUsers()" class="btn-gradient text-white px-3 py-2 text-xs rounded-xl font-bold border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
+                            <button onclick="loadCeoUsers()" class="btn-gradient text-white px-3 py-2 text-xs rounded-xl font-bold border-0 cursor-pointer flex items-center gap-1.5"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
                         </div>
                     </div>
                     <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
                         <table class="w-full text-right text-xs">
                             <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
                                 <tr>
-                                    <th class="p-4">الاسم</th>
+                                    <th class="p-4">الاسم وبيانات الطالب</th>
                                     <th class="p-4">رقم الهاتف</th>
                                     <th class="p-4">الرتبة</th>
                                     <th class="p-4">الكلية / الفرقة</th>
