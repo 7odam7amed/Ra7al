@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl" class="dark">
 <head>
     <meta charset="UTF-8">
@@ -456,12 +456,12 @@
 
             <!-- TAB 2: Trips & Single Reservations -->
             <div id="student-tab-trips-booking" class="student-subview hidden space-y-6">
-                <!-- Available Scheduled Trips Table -->
+                <!-- Available Subscription Plans Table -->
                 <div class="glass-card rounded-3xl overflow-hidden shadow-sm">
                     <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
                         <div>
-                            <h3 class="font-black text-sm">الباقات المتاحة للحجز</h3>
-                            <p class="text-xs text-slate-400 mt-0.5">تُعرض الرحلات الحالية والقادمة من قاعدة البيانات</p>
+                            <h3 class="font-black text-sm">الباقات المتاحة للاشتراك</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">اختر الباقة المناسبة لك واشترك في خدمة النقل الجامعي</p>
                         </div>
                         <button onclick="loadAvailableTripsForStudent()" class="text-xs text-brand-primary font-bold hover:underline bg-transparent border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
                     </div>
@@ -469,15 +469,15 @@
                         <table class="w-full text-right text-xs">
                             <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
                                 <tr>
-                                    <th class="p-4">خط السير</th>
-                                    <th class="p-4">موعد الرحلة</th>
-                                    <th class="p-4">المقاعد المتبقية</th>
-                                    <th class="p-4">سعر التذكرة</th>
+                                    <th class="p-4">اسم الباقة</th>
+                                    <th class="p-4">نوع الباقة</th>
+                                    <th class="p-4">المدة</th>
+                                    <th class="p-4">السعر</th>
                                     <th class="p-4 text-center">إجراء</th>
                                 </tr>
                             </thead>
                             <tbody id="student-available-trips-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="5" class="p-6 text-center text-slate-400">جاري تحميل الرحلات المتاحة...</td></tr>
+                                <tr><td colspan="5" class="p-6 text-center text-slate-400">جاري تحميل الباقات المتاحة...</td></tr>
                             </tbody>
                         </table>
                     </div>
