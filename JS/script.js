@@ -12,6 +12,9 @@ let currentSupervisorTripId = null;
 let selectedStudentTrip = null;
 let buySubRoutesCache = new Map();
 let currentPickupTripId = null;
+let displaySubscriptionIdCache = null;
+// Bus image object URLs created during this session (revoked on re-render)
+let activeBusImageUrls = new Set();
 
 // SubscriptionPlanType enum → Arabic labels (source of truth: ENUMS.md).
 const PLAN_TYPE_LABELS = {
@@ -21,7 +24,10 @@ const PLAN_TYPE_LABELS = {
     TERM: 'فصل دراسي'
 };
 
-// Rejected phone helpers for account deactivation / rejection enforcement
+// Plan duration bounds (SUBSCRIPTIONS.md: 1–730 days; DAILY fixed to exactly 1)
+const MAX_PLAN_DURATION_DAYS = 730;
+
+// Rejected phone helpers (client-side convenience cache for re-registration blocking)
 function getRejectedPhoneSet() {
     try {
         const raw = localStorage.getItem('rahaal_rejected_phones');
@@ -106,11 +112,15 @@ function initApp() {
 
     // 5. Asynchronously load background data without blocking UI rendering
     loadInitialPublicData();
-    fetchLandingStats();
 
     // Verify session in background if token exists
     if (token) {
         restoreAuthenticatedUser().catch(() => {});
+    } else {
+        // Landing counters are fed from public health data only for guests.
+        // CEO-only listing endpoints (users/buses/stations) intentionally are
+        // NOT called without a token (they would just produce 401 noise).
+        fetchLandingStats();
     }
 }
 
@@ -131,6 +141,8 @@ async function restoreAuthenticatedUser() {
             // Determine role
             const role = (user.role || 'STUDENT').toLowerCase();
             switchRole(role);
+            // With a valid session, CEO/SUPERVISOR can feed landing stats from real totals
+            fetchLandingStats();
             showToast(`أهلاً بك مجدداً يا ${user.full_name}`, 'success');
         } else {
             window.CONFIG.clearAccessToken();
@@ -396,7 +408,9 @@ function handleCardFileSelection(input) {
 }
 
 /**
- * Handle Student Registration Submit (Upload ID / Nomination Card -> Register -> Show Pending Status)
+ * Handle Student Registration Submit (Upload ID Card -> Register -> Show Pending Status)
+ * Flow per AUTHENTICATION.md §5: upload card first (multipart, field "file"),
+ * then register with the returned image_path verbatim.
  */
 async function handleRegisterSubmit(e) {
     e.preventDefault();
@@ -417,11 +431,6 @@ async function handleRegisterSubmit(e) {
         return;
     }
 
-    if (isPhoneRejected(phone)) {
-        showToast('❌ عذراً، هذا الرقم تم رفضه من قبل إدارة رحال مسبقاً ولا يمكن استخدامه للتسجيل مجدداً.', 'error');
-        return;
-    }
-
     if (!cardFileInput.files || cardFileInput.files.length === 0) {
         showToast('يرجى اختيار صورة الكارنيه الجامعي أو بطاقة الترشح للرفع.', 'error');
         return;
@@ -438,7 +447,7 @@ async function handleRegisterSubmit(e) {
     }
 
     try {
-        // Step 1: Upload ID Card / Nomination Card
+        // Step 1: Upload ID Card / Nomination Card (public, rate limit 10/min/IP)
         showToast('جاري رفع صورة الكارنيه / بطاقة الترشح...', 'info');
         const uploadRes = await window.authApi.uploadIdCard(cardFileInput.files[0]);
 
@@ -462,9 +471,6 @@ async function handleRegisterSubmit(e) {
         const registerRes = await window.authApi.register(payload);
         showToast('تم إرسال طلب إنشاء الحساب بنجاح! حسابك قيد مراجعة الـ CEO.', 'success');
 
-        // Increment dynamic registration counter
-        recordNewStudentRegistration();
-
         // Clear inputs
         document.getElementById('reg-name').value = '';
         document.getElementById('reg-phone').value = '';
@@ -476,7 +482,7 @@ async function handleRegisterSubmit(e) {
         const previewContainer = document.getElementById('reg-card-preview-container');
         if (previewContainer) previewContainer.classList.add('hidden');
 
-        // Show pending confirmation modal
+        // Show pending confirmation modal (backend: status=PENDING, is_active=false)
         const pendingModal = document.getElementById('reg-pending-modal');
         if (pendingModal) {
             pendingModal.classList.remove('hidden');
@@ -485,16 +491,11 @@ async function handleRegisterSubmit(e) {
         }
     } catch (err) {
         console.error('Registration error:', err);
-        const errStr = ((err && err.message) || '').toLowerCase();
-        if (errStr.includes('inactive') || errStr.includes('reject') || errStr.includes('disabled') || isPhoneRejected(phone)) {
-            showToast('❌ هذا الرقم تم رفضه من قبل إدارة رحال ولا يمكن إعادة استخدامه.', 'error');
-        } else if (err.status === 409 || errStr.includes('already') || errStr.includes('exist') || errStr.includes('موجود') || errStr.includes('مسجل')) {
-            if (isPhoneRejected(phone)) {
-                showToast('❌ هذا الرقم تم رفضه من قبل إدارة رحال مسبقاً.', 'error');
-            } else {
-                showToast('هذا الرقم مسجل بالفعل في النظام. يمكنك تسجيل الدخول.', 'error');
-            }
+        if (err.status === 409) {
+            showToast('هذا الرقم مسجل بالفعل في النظام. يمكنك تسجيل الدخول.', 'error');
         }
+        // All other statuses (404 inactive/unknown university, 422 validation, 429 rate limit)
+        // are surfaced by the centralized ApiClient error handler.
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
@@ -536,6 +537,8 @@ function switchStudentTab(tabId, btnElement) {
     } else if (tabId === 'payments') {
         loadMyPayments();
     }
+    // NOTE: there is no self-service profile edit endpoint in the backend
+    // (STUDENTS.md §1) — the profile tab is read-only by design.
 }
 
 async function loadStudentDashboard() {
@@ -547,13 +550,16 @@ async function loadStudentDashboard() {
     if (nameElem) nameElem.innerText = currentUser.full_name || 'الطالب';
     if (metaElem) metaElem.innerText = `${currentUser.faculty || 'الكلية'} | ${currentUser.academic_year || 'الفرقة'}`;
 
-    // Profile form
+    // Profile tab (read-only: the backend has no student self-service profile
+    // update endpoint — STUDENTS.md §1)
     const profName = document.getElementById('prof-name');
     const profFaculty = document.getElementById('prof-faculty');
     const profYear = document.getElementById('prof-academic-year');
+    const profPhone = document.getElementById('prof-phone');
     if (profName) profName.value = currentUser.full_name || '';
     if (profFaculty) profFaculty.value = currentUser.faculty || '';
     if (profYear) profYear.value = currentUser.academic_year || '';
+    if (profPhone) profPhone.innerText = currentUser.phone_number || '--';
 
     // Load subscription (prefer ACTIVE; otherwise show the most recent one so payment state stays visible)
     try {
@@ -563,10 +569,25 @@ async function loadStudentDashboard() {
         const displaySub = activeSub || items[0] || null;
 
         if (displaySub) {
+            displaySubscriptionIdCache = displaySub.id;
             setElementText('sub-stat-plan', displaySub.plan?.name || PLAN_TYPE_LABELS[displaySub.plan_type] || displaySub.plan_type || 'باقة نقل');
-            setElementText('sub-stat-rides', `${displaySub.boarding_count || 0} رحلة`);
+            setElementText('sub-stat-rides', `${displaySub.used_qr_usages ?? displaySub.boarding_count ?? 0} رحلة`);
             setElementText('sub-stat-outbound', displaySub.outbound_pickup_point?.name || 'لم تُحدد نقطة تجمع');
             setElementText('sub-stat-return', displaySub.return_pickup_point?.name || (displaySub.return_pickup_mode === 'SAME_AS_OUTBOUND' ? 'نفس محطة الذهاب' : '--'));
+
+            // Authoritative QR accounting from SubscriptionDetailResponse (QR_AND_BOARDING.md §5).
+            // Never compute allowances client-side — display the API fields only.
+            const usageLine = document.getElementById('sub-stat-qr-usage');
+            if (usageLine) {
+                if (displaySub.max_qr_usages !== null && displaySub.max_qr_usages !== undefined) {
+                    usageLine.textContent = `المتبقي: ${displaySub.remaining_qr_usages ?? 0} / ${displaySub.max_qr_usages} • اليوم: ${displaySub.qr_usages_today ?? 0} / 2`;
+                    usageLine.classList.remove('hidden');
+                } else {
+                    // Deleted-plan edge case: fall back to dates + used count only.
+                    usageLine.textContent = `مستخدم: ${displaySub.used_qr_usages ?? 0}`;
+                    usageLine.classList.remove('hidden');
+                }
+            }
 
             // QR is valid only for ACTIVE subscriptions — the backend rejects GET /subscriptions/{id}/qr otherwise.
             if (displaySub.status === 'ACTIVE') {
@@ -674,8 +695,7 @@ async function loadStudentBoardingHistory(subId) {
 
     try {
         if (!subId) {
-            const subsRes = await window.subscriptionsApi.listMy({ page_size: 1 });
-            subId = subsRes?.items?.[0]?.id;
+            subId = displaySubscriptionIdCache;
         }
 
         if (!subId) {
@@ -770,8 +790,13 @@ async function bookSingleTrip(tripId) {
     if (!confirm('هل ترغب بتأكيد حجز مقعدك في هذه الرحلة؟')) return;
 
     try {
-        await window.reservationsApi.book(tripId);
-        showToast('تم حجز مقعدك بنجاح! تم إنشاء الحجز وسجل الدفع.', 'success');
+        const reservation = await window.reservationsApi.book(tripId);
+        // A reservation does NOT auto-create a payment (RESERVATIONS.md §7):
+        // the student must submit one via POST /payments.
+        showToast('تم حجز مقعدك بنجاح! أكمل الدفع لتفعيل الحجز.', 'success');
+        if (reservation?.id) {
+            openCreateReservationPaymentModal(reservation.id, reservation.trip?.fare_amount || '50.00', 'EGP');
+        }
         loadAvailableSubscriptionPlansForStudent();
         loadMyReservations();
     } catch (e) {
@@ -899,10 +924,14 @@ function openSubmitPaymentModal(paymentId) {
     if (modal) modal.classList.remove('hidden');
 }
 
+/**
+ * Payment submit (student, PENDING only): PATCH /payments/{id}/submit.
+ * Digital methods require a transaction reference (PAYMENTS.md §4).
+ */
 async function handleSubmitPaymentProof(e) {
     e.preventDefault();
     const paymentId = document.getElementById('submit-pay-id').value;
-    const ref = document.getElementById('submit-pay-ref').value;
+    const ref = document.getElementById('submit-pay-ref').value.trim();
     const notes = document.getElementById('submit-pay-notes').value;
 
     try {
@@ -912,6 +941,59 @@ async function handleSubmitPaymentProof(e) {
         loadMyPayments();
     } catch (e) {
         console.error('Submit payment proof error:', e);
+    }
+}
+
+/**
+ * Student creates a payment attempt for their own CONFIRMED reservation
+ * (POST /payments — STUDENT only, PAYMENTS.md).
+ */
+function openCreateReservationPaymentModal(reservationId, amount, currency) {
+    const idInput = document.getElementById('create-pay-reservation-id');
+    const amountText = document.getElementById('create-pay-amount-text');
+    const modal = document.getElementById('create-reservation-payment-modal');
+    if (!modal || !idInput) return;
+
+    idInput.value = reservationId;
+    if (amountText) amountText.innerText = `${amount} ${currency || 'EGP'}`;
+    document.getElementById('create-pay-method').value = 'CASH';
+    document.getElementById('create-pay-ref').value = '';
+    document.getElementById('create-pay-notes').value = '';
+    modal.classList.remove('hidden');
+}
+
+function onCreateReservationPayMethodChange() {
+    // Digital methods carry a reference; CASH does not need one
+    const method = document.getElementById('create-pay-method')?.value;
+    const refInput = document.getElementById('create-pay-ref');
+    if (refInput) refInput.required = (method === 'VODAFONE_CASH' || method === 'INSTAPAY');
+}
+
+async function handleCreateReservationPaymentSubmit(e) {
+    e.preventDefault();
+    const reservationId = parseInt(document.getElementById('create-pay-reservation-id').value);
+    const method = document.getElementById('create-pay-method').value;
+    const ref = (document.getElementById('create-pay-ref').value || '').trim() || null;
+    const notes = (document.getElementById('create-pay-notes').value || '').trim() || null;
+
+    if ((method === 'VODAFONE_CASH' || method === 'INSTAPAY') && !ref) {
+        showToast('الدفع الرقمي يتطلب رقم مرجع التحويل.', 'error');
+        return;
+    }
+
+    try {
+        await window.paymentsApi.create({
+            reservation_id: reservationId,
+            method: method,
+            transaction_reference: ref,
+            notes: notes
+        });
+        showToast('تم إنشاء عملية الدفع! بانتظار تأكيد الإدارة.', 'success');
+        closeModal('create-reservation-payment-modal');
+        loadMyPayments();
+        loadMyReservations();
+    } catch (err) {
+        console.error('Create reservation payment error:', err);
     }
 }
 
@@ -1192,25 +1274,9 @@ async function handleBuySubscriptionSubmit(e) {
     }
 }
 
-async function handleStudentProfileUpdate(e) {
-    e.preventDefault();
-    const name = document.getElementById('prof-name').value;
-    const faculty = document.getElementById('prof-faculty').value;
-    const year = document.getElementById('prof-academic-year').value;
-
-    try {
-        const updated = await window.usersApi.update(currentUser.id, {
-            full_name: name,
-            faculty: faculty,
-            academic_year: year
-        });
-        currentUser = updated;
-        showToast('تم تحديث بيانات الملف الشخصي بنجاح.', 'success');
-        updateNavUserProfile(updated);
-    } catch (err) {
-        console.error('Profile update error:', err);
-    }
-}
+// NOTE: there is no student self-service profile update endpoint in the
+// backend (STUDENTS.md §1). PATCH /users/{id} is CEO-only, so the profile
+// tab intentionally displays read-only data.
 
 // ============================================================
 // SUPERVISOR DASHBOARD CONTROLLERS
@@ -1283,7 +1349,10 @@ async function loadSupervisorTripStudents() {
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
                         <td class="p-4 font-black text-slate-800 dark:text-white">${st.student_name}</td>
                         <td class="p-4 font-semibold text-slate-500 dark:text-slate-400">${st.outbound_pickup || 'المحطة الرئيسية'}</td>
-                        <td class="p-4 font-mono font-bold text-slate-600 dark:text-slate-300">${st.phone_number || '--'}</td>
+                        <td class="p-4 font-mono font-bold text-slate-600 dark:text-slate-300">
+                            <span dir="ltr">${st.subscription_status || '--'}</span>
+                            ${st.payment_status ? `<span class="block text-[10px] font-bold ${st.payment_status === 'VERIFIED' ? 'text-emerald-500' : 'text-amber-500'}">${st.payment_status}</span>` : ''}
+                        </td>
                         <td class="p-4">
                             <span class="px-2 py-0.5 rounded-lg text-[10px] font-black ${st.outbound_boarded ? 'bg-emerald-500/15 text-emerald-500' : 'bg-amber-500/15 text-amber-500'}">
                                 ${st.outbound_boarded ? 'تم الصعود' : 'لم يصعد'}
@@ -1377,7 +1446,11 @@ async function openSupervisorScanModal() {
                 pickupSelect.innerHTML += `<option value="${p.id}">${p.name} (#${p.sequence})</option>`;
             });
         } else {
-            pickupSelect.innerHTML = '<option value="1">نقطة الانطلاق الرئيسية (افتراضي)</option>';
+            // The scan endpoint validates the pickup point belongs to the trip
+            // and matches the student's configured point — never fake an id.
+            pickupSelect.innerHTML = '<option value="">لا توجد نقاط تجمع معرفة لهذه الرحلة</option>';
+            pickupSelect.disabled = true;
+            showToast('لا توجد نقاط تجمع لهذه الرحلة. اطلب من الإدارة تعيينها أولاً.', 'warning');
         }
 
         document.getElementById('scan-qr-token-input').value = '';
@@ -1392,10 +1465,14 @@ async function handleSupervisorScanSubmit(e) {
 
     const qrToken = document.getElementById('scan-qr-token-input').value.trim();
     const direction = document.getElementById('scan-direction-select').value;
-    const pickupPointId = parseInt(document.getElementById('scan-pickup-point-select').value) || 1;
+    const pickupPointId = parseInt(document.getElementById('scan-pickup-point-select').value);
 
     if (!qrToken) {
         showToast('يرجى إدخال أو مسح كود الـ QR الخاص بالطالب.', 'error');
+        return;
+    }
+    if (!Number.isInteger(pickupPointId) || pickupPointId <= 0) {
+        showToast('يرجى اختيار نقطة الركوب الصحيحة لهذه الرحلة.', 'error');
         return;
     }
 
@@ -1450,36 +1527,29 @@ function switchCeoTab(tabId, btnElement) {
     else if (tabId === 'ceo-boarding') loadCeoBoardingRecords();
 }
 
-// Helper functions for user status detection
+// Helper functions for user status detection (UserStatus enum: ENUMS.md)
 function isUserInactive(u) {
     if (!u) return false;
-    const statusStr = (u.status || u.account_status || u.state || '').toString().trim().toUpperCase();
-    if (statusStr === 'INACTIVE' || statusStr === 'DISABLED' || statusStr === 'REJECTED' || statusStr === 'BLOCKED') {
+    const statusStr = (u.status || '').toString().trim().toUpperCase();
+    if (statusStr === 'INACTIVE' || statusStr === 'REJECTED') {
         return true;
     }
-    if (u.phone_number && isPhoneRejected(u.phone_number)) {
-        return true;
-    }
-    if (u.is_rejected === true || u.is_disabled === true) {
-        return true;
-    }
+    if (u.is_active === false) return true;
     return false;
 }
 
 function isUserActive(u) {
     if (!u) return false;
     if (isUserInactive(u)) return false;
-    const statusStr = (u.status || u.account_status || '').toString().trim().toUpperCase();
-    if (statusStr === 'ACTIVE' || statusStr === 'APPROVED' || statusStr === 'VERIFIED') return true;
-    if (u.is_active === true || u.is_active === 1 || u.is_active === 'true') return true;
+    const statusStr = (u.status || '').toString().trim().toUpperCase();
+    // NOTE: 'ACTIVE' is a legacy input alias only — the API always returns APPROVED.
+    if (statusStr === 'APPROVED') return true;
     return false;
 }
 
 function isUserPending(u) {
     if (!u) return false;
-    if (isUserActive(u)) return false;
-    if (isUserInactive(u)) return false;
-    return true;
+    return (u.status || '').toString().trim().toUpperCase() === 'PENDING';
 }
 
 let ceoLoadedUsersList = [];
@@ -1488,7 +1558,7 @@ async function loadCeoDashboardData() {
     try {
         const [usersRes, pendingUsersRes, busesRes, tripsRes, subsRes] = await Promise.allSettled([
             window.usersApi.list({ page_size: 100 }),
-            window.usersApi.list({ is_active: false, page_size: 100 }),
+            window.usersApi.listPending({ page_size: 100 }),
             window.busesApi.list({ page_size: 1 }),
             window.tripsApi.list({ page_size: 1 }),
             window.subscriptionsApi.listAll({ page_size: 1 })
@@ -1498,6 +1568,7 @@ async function loadCeoDashboardData() {
         const allUsers = Array.isArray(allUsersRaw) ? allUsersRaw : (allUsersRaw?.items || allUsersRaw?.data || allUsersRaw?.users || []);
         const totalUsers = (allUsersRaw && typeof allUsersRaw.total === 'number') ? allUsersRaw.total : allUsers.length;
 
+        // Pending count comes from the dedicated GET /users/pending queue (status=PENDING)
         const pendingUsersRaw = pendingUsersRes.status === 'fulfilled' ? pendingUsersRes.value : null;
         const pendingUsers = Array.isArray(pendingUsersRaw) ? pendingUsersRaw : (pendingUsersRaw?.items || pendingUsersRaw?.data || pendingUsersRaw?.users || []);
         
@@ -1555,27 +1626,33 @@ async function loadCeoUsers() {
     try {
         const params = { page_size: 100 };
         if (roleFilter) params.role = roleFilter;
-        if (statusFilter === 'active') params.is_active = true;
-        if (statusFilter === 'inactive' || statusFilter === 'pending') params.is_active = false;
+        if (statusFilter === 'active') params.status = 'APPROVED';
 
-        // Fetch primary list and if status is pending/all also fetch inactive to ensure no missed pending records
-        const [primaryRes, inactiveRes] = await Promise.allSettled([
-            window.usersApi.list(params),
-            (statusFilter === '' || statusFilter === 'pending') ? window.usersApi.list({ is_active: false, page_size: 100 }) : Promise.resolve(null)
+        // The "inactive" UI bucket covers both INACTIVE and REJECTED accounts
+        const [primaryRes, pendingRes, rejectedRes] = await Promise.allSettled([
+            window.usersApi.list(statusFilter === 'inactive' ? { ...params, status: 'INACTIVE' } : params),
+            (statusFilter === '' || statusFilter === 'pending') ? window.usersApi.listPending({ page_size: 100 }) : Promise.resolve(null),
+            statusFilter === 'inactive' ? window.usersApi.list({ ...params, status: 'REJECTED' }) : Promise.resolve(null)
         ]);
 
         const primaryRaw = primaryRes.status === 'fulfilled' ? primaryRes.value : null;
         let primaryItems = Array.isArray(primaryRaw) ? primaryRaw : (primaryRaw?.items || primaryRaw?.data || primaryRaw?.users || []);
 
-        let inactiveItems = [];
-        if (inactiveRes.status === 'fulfilled' && inactiveRes.value) {
-            const raw = inactiveRes.value;
-            inactiveItems = Array.isArray(raw) ? raw : (raw?.items || raw?.data || raw?.users || []);
+        let pendingItems = [];
+        if (pendingRes.status === 'fulfilled' && pendingRes.value) {
+            const raw = pendingRes.value;
+            pendingItems = Array.isArray(raw) ? raw : (raw?.items || raw?.data || raw?.users || []);
+        }
+
+        let rejectedItems = [];
+        if (rejectedRes.status === 'fulfilled' && rejectedRes.value) {
+            const raw = rejectedRes.value;
+            rejectedItems = Array.isArray(raw) ? raw : (raw?.items || raw?.data || raw?.users || []);
         }
 
         // Merge and deduplicate by user ID
         const mergedMap = new Map();
-        [...primaryItems, ...inactiveItems].forEach(u => {
+        [...primaryItems, ...pendingItems, ...rejectedItems].forEach(u => {
             if (u && u.id) mergedMap.set(u.id, u);
         });
         let items = Array.from(mergedMap.values());
@@ -1765,13 +1842,16 @@ function renderCeoUsersTable(items) {
 async function confirmCeoUser(userId) {
     try {
         const user = ceoLoadedUsersList.find(u => u.id === userId);
-        if (user && user.phone_number) {
-            removeRejectedPhone(user.phone_number);
-        }
-        if (isUserPending(user)) {
-            await window.usersApi.approve(userId);
-        } else {
+        if (user && isUserInactive(user)) {
+            // REJECTED accounts cannot be re-approved (USERS.md §1) — only
+            // INACTIVE ones can be reactivated via the status endpoint.
+            if ((user.status || '').toUpperCase() === 'REJECTED') {
+                showToast('الحسابات المرفوضة لا يمكن اعتمادها مرة أخرى من النظام.', 'error');
+                return;
+            }
             await window.usersApi.updateStatus(userId, true);
+        } else {
+            await window.usersApi.approve(userId);
         }
         showToast('تم اعتماد وتأكيد حساب الطالب بنجاح! يمكنه الآن تسجيل الدخول وحجز الرحلات.', 'success');
         loadCeoUsers();
@@ -1784,15 +1864,15 @@ async function confirmCeoUser(userId) {
 async function rejectCeoUser(userId) {
     try {
         const user = ceoLoadedUsersList.find(u => u.id === userId);
-        if (user && user.phone_number) {
-            addRejectedPhone(user.phone_number);
-        }
         if (isUserPending(user)) {
             await window.usersApi.reject(userId);
             showToast('تم رفض طلب التسجيل بنجاح.', 'info');
-        } else {
+        } else if (isUserActive(user)) {
             await window.usersApi.updateStatus(userId, false);
             showToast('تم تعطيل الحساب بنجاح.', 'info');
+        } else {
+            showToast('لا يمكن رفض أو تعطيل حساب مرفوض بالفعل.', 'error');
+            return;
         }
         loadCeoUsers();
         loadCeoDashboardData();
@@ -2062,52 +2142,47 @@ async function deleteUniversity(id) {
 }
 
 // 4. CEO: Buses Fleet Management & Bus Image Support
-function getStoredBusImages() {
-    try {
-        const raw = localStorage.getItem('rahaal_bus_images');
-        return raw ? JSON.parse(raw) : {};
-    } catch (e) {
-        return {};
-    }
-}
-
-function setStoredBusImage(key, dataUrl) {
-    if (!key || !dataUrl) return;
-    try {
-        const images = getStoredBusImages();
-        images[String(key)] = dataUrl;
-        localStorage.setItem('rahaal_bus_images', JSON.stringify(images));
-    } catch (e) {
-        console.warn('Could not store bus image:', e);
-    }
-}
-
-function getStoredBusImage(bus) {
-    if (!bus) return null;
-    if (bus.image_url) return bus.image_url;
-    if (bus.image) return bus.image;
-    if (bus.photo) return bus.photo;
-    const images = getStoredBusImages();
-    return images[String(bus.id)] || (bus.bus_number ? images[String(bus.bus_number)] : null) || null;
+//
+// Bus images live in a PRIVATE backend bucket (BUSES.md §3). image_url is an
+// internal storage reference — never a fetchable URL. Display goes through
+// GET /buses/{id}/image/metadata + GET /buses/{id}/image (authorized blob).
+function revokeBusImageUrls() {
+    activeBusImageUrls.forEach(url => URL.revokeObjectURL(url));
+    activeBusImageUrls.clear();
 }
 
 function handleBusImageSelect(input) {
-    const previewContainer = document.getElementById('bus-image-preview-container');
-    const previewImg = document.getElementById('bus-image-preview');
-    const hiddenData = document.getElementById('new-bus-image-data');
+    // Preview elements are scoped to the input's own modal to avoid duplicate IDs
+    // across the add-bus modal and the replace-image modal.
+    const scope = input.closest('.glass-card') || document;
+    const previewContainer = scope.querySelector('.bus-image-preview-container');
+    const previewImg = scope.querySelector('.bus-image-preview-img');
 
     if (!input.files || input.files.length === 0) {
         if (previewContainer) previewContainer.classList.add('hidden');
-        if (hiddenData) hiddenData.value = '';
         return;
     }
 
     const file = input.files[0];
+    // Client-side pre-check mirrors FILE_UPLOADS.md (server remains authoritative)
+    const okExt = /\.(jpe?g|png|webp)$/i.test(file.name);
+    const okMime = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
+    if (!okExt || !okMime) {
+        showToast('صيغة الصورة غير مدعومة. المسموح: JPG / PNG / WEBP.', 'error');
+        input.value = '';
+        if (previewContainer) previewContainer.classList.add('hidden');
+        return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+        showToast('حجم الصورة يتجاوز الحد الأقصى 5 ميجابايت.', 'error');
+        input.value = '';
+        if (previewContainer) previewContainer.classList.add('hidden');
+        return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
-        const dataUrl = e.target.result;
-        if (previewImg) previewImg.src = dataUrl;
-        if (hiddenData) hiddenData.value = dataUrl;
+        if (previewImg) previewImg.src = e.target.result;
         if (previewContainer) previewContainer.classList.remove('hidden');
     };
     reader.readAsDataURL(file);
@@ -2115,14 +2190,35 @@ function handleBusImageSelect(input) {
 
 function clearBusImagePreview() {
     const fileInput = document.getElementById('new-bus-image-file');
-    const hiddenData = document.getElementById('new-bus-image-data');
-    const previewContainer = document.getElementById('bus-image-preview-container');
-    const previewImg = document.getElementById('bus-image-preview');
-
+    // Clear previews in every modal (add-bus + replace-image)
+    document.querySelectorAll('.bus-image-preview-container').forEach(c => c.classList.add('hidden'));
+    document.querySelectorAll('.bus-image-preview-img').forEach(img => { img.src = ''; });
     if (fileInput) fileInput.value = '';
-    if (hiddenData) hiddenData.value = '';
-    if (previewImg) previewImg.src = '';
-    if (previewContainer) previewContainer.classList.add('hidden');
+    const replaceInput = document.getElementById('bus-image-replace-file');
+    if (replaceInput) replaceInput.value = '';
+}
+
+/**
+ * Fetch the authorized bus image (blob) and attach it to the card's <img>.
+ * Handles the "no image" case (404 from the stream endpoint) as a placeholder.
+ */
+async function attachBusImage(busId, imgElement, placeholderContainer) {
+    try {
+        const meta = await window.busesApi.getImageMetadata(busId);
+        if (!meta || meta.has_image !== true || !imgElement) return;
+
+        const blob = await window.busesApi.getImage(busId);
+        if (blob instanceof Blob) {
+            const objectUrl = URL.createObjectURL(blob);
+            activeBusImageUrls.add(objectUrl);
+            imgElement.src = objectUrl;
+            imgElement.classList.remove('hidden');
+            if (placeholderContainer) placeholderContainer.classList.add('hidden');
+        }
+    } catch (e) {
+        // 404 = no image (or no relationship) — leave the placeholder in place.
+        console.warn(`No bus image displayed for bus #${busId}:`, e?.message);
+    }
 }
 
 async function loadCeoBuses() {
@@ -2134,6 +2230,7 @@ async function loadCeoBuses() {
         const res = await window.busesApi.list({ page_size: 50 });
         const items = res?.items || (Array.isArray(res) ? res : []);
         cachedBuses = items;
+        revokeBusImageUrls();
 
         if (items.length > 0) {
             grid.innerHTML = '';
@@ -2149,34 +2246,23 @@ async function loadCeoBuses() {
                     MAINTENANCE: 'في الصيانة'
                 };
 
-                const busImg = getStoredBusImage(bus);
-
                 grid.innerHTML += `
                     <div class="glass-card rounded-3xl overflow-hidden hover:scale-[1.02] transition border border-slate-200/50 dark:border-slate-800/50 shadow-md flex flex-col justify-between">
-                        ${busImg ? `
-                            <div class="relative w-full h-40 bg-slate-900 overflow-hidden group">
-                                <img src="${busImg}" alt="${bus.bus_number}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-                                <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20"></div>
-                                <span class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[10px] font-black backdrop-blur-md ${statusColors[bus.status] || 'bg-slate-500/50 text-white'}">
-                                    ${statusLabels[bus.status] || bus.status}
-                                </span>
-                                <span class="absolute bottom-2 right-3 font-black text-white text-sm drop-shadow-md flex items-center gap-1.5">
-                                    <i class="fa-solid fa-bus text-[#6AB9FF]"></i> ${bus.bus_number || `باص #${bus.id}`}
-                                </span>
-                            </div>
-                        ` : `
-                            <div class="p-6 pb-0 flex items-center justify-between">
-                                <span class="text-3xl">🚌</span>
-                                <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${statusColors[bus.status] || 'bg-slate-500/15 text-slate-400'}">
-                                    ${statusLabels[bus.status] || bus.status}
-                                </span>
-                            </div>
-                        `}
-                        <div class="p-6 ${busImg ? 'pt-3' : 'pt-2'} space-y-3 flex-1 flex flex-col justify-between">
+                        <div class="relative w-full h-40 bg-slate-900 overflow-hidden group">
+                            <div class="w-full h-full flex items-center justify-center text-4xl" data-bus-image-placeholder="${bus.id}">🚌</div>
+                            <img src="" alt="${bus.bus_number}" data-bus-image="${bus.id}" class="hidden absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 pointer-events-none"></div>
+                            <span class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[10px] font-black backdrop-blur-md ${statusColors[bus.status] || 'bg-slate-500/50 text-white'}">
+                                ${statusLabels[bus.status] || bus.status}
+                            </span>
+                            <span class="absolute bottom-2 right-3 font-black text-white text-sm drop-shadow-md flex items-center gap-1.5">
+                                <i class="fa-solid fa-bus text-[#6AB9FF]"></i> ${bus.bus_number || `باص #${bus.id}`}
+                            </span>
+                        </div>
+                        <div class="p-6 pt-3 space-y-3 flex-1 flex flex-col justify-between">
                             <div>
-                                ${!busImg ? `<h4 class="font-black text-sm text-slate-800 dark:text-white">${bus.bus_number || `باص #${bus.id}`}</h4>` : ''}
                                 <p class="text-xs text-slate-400 font-bold mt-1">اللوحة: <span class="font-mono text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">${bus.license_plate}</span></p>
-                                <p class="text-[11px] text-slate-400 font-bold mt-1">السعة: ${bus.capacity} مقعد • الموديل: ${bus.model || 'سياحي'}</p>
+                                <p class="text-[11px] text-slate-400 font-bold mt-1">السعة: ${bus.capacity} مقعد • الموديل: ${bus.model || 'سياحي'}${bus.year ? ` • ${bus.year}` : ''}</p>
                             </div>
                             <div class="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
                                 <select onchange="updateBusStatus(${bus.id}, this.value)" class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-1.5 text-[10px] font-bold">
@@ -2184,6 +2270,9 @@ async function loadCeoBuses() {
                                     <option value="MAINTENANCE" ${bus.status === 'MAINTENANCE' ? 'selected' : ''}>صيانة</option>
                                     <option value="INACTIVE" ${bus.status === 'INACTIVE' ? 'selected' : ''}>إيقاف</option>
                                 </select>
+                                <button onclick="openReplaceBusImageModal(${bus.id}, '${(bus.bus_number || '').replace(/'/g, "\\'")}', ${bus.image_url ? 'true' : 'false'})" title="تغيير / حذف صورة الحافلة" class="bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white p-2 rounded-xl text-xs border-0 cursor-pointer fast-transition">
+                                    <i class="fa-solid fa-image"></i>
+                                </button>
                                 <button onclick="deleteBus(${bus.id})" title="حذف الحافلة" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white p-2 rounded-xl text-xs border-0 cursor-pointer fast-transition">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
@@ -2191,6 +2280,15 @@ async function loadCeoBuses() {
                         </div>
                     </div>
                 `;
+            });
+
+            // Load authorized images asynchronously (metadata → blob stream)
+            items.forEach(bus => {
+                const img = grid.querySelector(`[data-bus-image="${bus.id}"]`);
+                const placeholder = grid.querySelector(`[data-bus-image-placeholder="${bus.id}"]`);
+                if (img && placeholder) {
+                    attachBusImage(bus.id, img, placeholder);
+                }
             });
         } else {
             grid.innerHTML = '<div class="col-span-3 text-center py-10 text-slate-400 font-bold">لا توجد حافلات مسجلة بالأسطول</div>';
@@ -2219,8 +2317,10 @@ async function handleSaveBusSubmit(e) {
     const plate = document.getElementById('new-bus-plate').value;
     const cap = parseInt(document.getElementById('new-bus-capacity').value);
     const model = document.getElementById('new-bus-model').value;
-    const year = parseInt(document.getElementById('new-bus-year').value) || null;
-    const imageData = document.getElementById('new-bus-image-data')?.value || '';
+    const yearInput = document.getElementById('new-bus-year').value;
+    const year = yearInput ? parseInt(yearInput) : null;
+    const fileInput = document.getElementById('new-bus-image-file');
+    const imageFile = (fileInput && fileInput.files && fileInput.files.length > 0) ? fileInput.files[0] : null;
 
     try {
         const payload = {
@@ -2233,18 +2333,10 @@ async function handleSaveBusSubmit(e) {
 
         if (id) {
             await window.busesApi.update(id, payload);
-            if (imageData) {
-                setStoredBusImage(id, imageData);
-                if (busNumber) setStoredBusImage(busNumber, imageData);
-            }
             showToast('تم تعديل بيانات الحافلة بنجاح.', 'success');
         } else {
-            const createdBus = await window.busesApi.create(payload);
-            const createdId = createdBus?.id;
-            if (imageData) {
-                if (createdId) setStoredBusImage(createdId, imageData);
-                if (busNumber) setStoredBusImage(busNumber, imageData);
-            }
+            // multipart/form-data when an image is included, JSON otherwise
+            await window.busesApi.create(payload, imageFile);
             showToast('تمت إضافة الحافلة للأسطول بنجاح.', 'success');
         }
         clearBusImagePreview();
@@ -2252,6 +2344,58 @@ async function handleSaveBusSubmit(e) {
         loadCeoBuses();
     } catch (err) {
         console.error('Save bus error:', err);
+    }
+}
+
+// ---- Replace / remove bus image (CEO) ----
+let currentBusImageId = null;
+
+function openReplaceBusImageModal(busId, busNumber, hasImage) {
+    currentBusImageId = busId;
+    const ctx = document.getElementById('bus-image-modal-context');
+    if (ctx) ctx.innerText = `الحافلة: ${busNumber || `#${busId}`}`;
+    const removeBtn = document.getElementById('bus-image-remove-btn');
+    if (removeBtn) {
+        if (hasImage) {
+            removeBtn.classList.remove('hidden');
+        } else {
+            removeBtn.classList.add('hidden');
+        }
+    }
+    const fileInput = document.getElementById('bus-image-replace-file');
+    if (fileInput) fileInput.value = '';
+    const modal = document.getElementById('bus-image-modal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+async function handleReplaceBusImageSubmit(e) {
+    e.preventDefault();
+    if (!currentBusImageId) return;
+    const fileInput = document.getElementById('bus-image-replace-file');
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        showToast('يرجى اختيار صورة جديدة أولاً.', 'error');
+        return;
+    }
+    try {
+        await window.busesApi.updateImage(currentBusImageId, fileInput.files[0]);
+        showToast('تم تحديث صورة الحافلة بنجاح.', 'success');
+        closeModal('bus-image-modal');
+        loadCeoBuses();
+    } catch (err) {
+        console.error('Replace bus image error:', err);
+    }
+}
+
+async function removeBusImage() {
+    if (!currentBusImageId) return;
+    if (!confirm('هل أنت متأكد من إزالة صورة هذه الحافلة؟')) return;
+    try {
+        await window.busesApi.deleteImage(currentBusImageId);
+        showToast('تم إزالة صورة الحافلة.', 'success');
+        closeModal('bus-image-modal');
+        loadCeoBuses();
+    } catch (err) {
+        console.error('Remove bus image error:', err);
     }
 }
 
@@ -2460,13 +2604,25 @@ async function loadCeoRoutes() {
 }
 
 async function openAddRouteModal() {
-    // Populate stations
-    await loadCeoStations();
+    // Populate stations and active supervisors
+    const [_, supsRes] = await Promise.all([
+        loadCeoStations(),
+        window.usersApi.list({ role: 'SUPERVISOR', is_active: true, page_size: 100 }).catch(() => null)
+    ]);
+    cachedSupervisors = supsRes?.items || [];
+
     const originSelect = document.getElementById('route-origin-select');
     const destSelect = document.getElementById('route-dest-select');
+    const supSelect = document.getElementById('route-sup-select');
 
     if (originSelect) originSelect.innerHTML = '<option value="">اختر محطة الانطلاق</option>';
     if (destSelect) destSelect.innerHTML = '<option value="">اختر محطة الوصول</option>';
+    if (supSelect) {
+        supSelect.innerHTML = '<option value="">بدون مشرف</option>';
+        cachedSupervisors.forEach(s => {
+            supSelect.innerHTML += `<option value="${s.id}">${s.full_name}</option>`;
+        });
+    }
 
     cachedStations.forEach(st => {
         if (originSelect) originSelect.innerHTML += `<option value="${st.id}">${st.name}</option>`;
@@ -2967,10 +3123,40 @@ async function loadCeoSubscriptionPlans() {
 
 function openAddPlanModal() {
     document.getElementById('plan-name-input').value = '';
-    document.getElementById('plan-price-input').value = '1500';
-    document.getElementById('plan-duration-input').value = '90';
+    document.getElementById('plan-price-input').value = '';
+    document.getElementById('plan-duration-input').value = '';
+    updatePlanDurationHint();
     const modal = document.getElementById('add-plan-modal');
     if (modal) modal.classList.remove('hidden');
+}
+
+/**
+ * Keep the duration field aligned with the selected plan type.
+ * DAILY is fixed to exactly 1 day; every other type is CEO-defined (1–730).
+ * (SUBSCRIPTIONS.md §1 — never assume WEEKLY=7 / MONTHLY=30 / TERM=90.)
+ */
+function onPlanTypeChange() {
+    updatePlanDurationHint();
+}
+
+function updatePlanDurationHint() {
+    const type = document.getElementById('plan-type-select')?.value || 'WEEKLY';
+    const input = document.getElementById('plan-duration-input');
+    const hint = document.getElementById('plan-duration-hint');
+    if (!input) return;
+
+    if (type === 'DAILY') {
+        input.value = '1';
+        input.min = '1';
+        input.max = '1';
+        input.readOnly = true;
+        if (hint) hint.textContent = 'الباقة اليومية ثابتة المدة: يوم واحد فقط.';
+    } else {
+        input.readOnly = false;
+        input.min = '1';
+        input.max = String(MAX_PLAN_DURATION_DAYS);
+        if (hint) hint.textContent = `مدة حرة يحددها المدير التنفيذي: من 1 إلى ${MAX_PLAN_DURATION_DAYS} يوم (مثال: WEEKLY + 8 أيام، MONTHLY + 45 يوماً، TERM + 120 يوماً).`;
+    }
 }
 
 async function handleCreatePlanSubmit(e) {
@@ -2980,6 +3166,21 @@ async function handleCreatePlanSubmit(e) {
     const price = document.getElementById('plan-price-input').value;
     const durVal = document.getElementById('plan-duration-input').value;
     const dur = durVal ? parseInt(durVal) : null;
+
+    // Mirror backend validation (SUBSCRIPTIONS.md §1) — server remains authoritative.
+    if (!Number.isInteger(dur) || dur < 1 || dur > MAX_PLAN_DURATION_DAYS) {
+        showToast(`المدة يجب أن تكون بين 1 و ${MAX_PLAN_DURATION_DAYS} يوماً.`, 'error');
+        return;
+    }
+    if (type === 'DAILY' && dur !== 1) {
+        showToast('الباقة اليومية (DAILY) مدتها يوم واحد فقط.', 'error');
+        return;
+    }
+    const priceNum = parseFloat(price);
+    if (!Number.isFinite(priceNum) || priceNum <= 0) {
+        showToast('يرجى إدخال سعر صحيح أكبر من صفر.', 'error');
+        return;
+    }
 
     try {
         await window.subscriptionPlansApi.create({
@@ -3110,36 +3311,48 @@ let statsData = {
 };
 
 /**
- * Fetch dynamic counts from backend and update counter targets
+ * Fetch dynamic counts from backend and update counter targets.
+ * Uses the public /health/db probe to know the backend is alive; detailed
+ * totals come from CEO-only listing endpoints, so they are only fetched when
+ * an authenticated session exists. Guests see the punctuality counter only.
  */
 async function fetchLandingStats() {
     try {
-        const [usersRes, busesRes, stationsRes] = await Promise.allSettled([
-            window.usersApi ? window.usersApi.list({ role: 'STUDENT', page_size: 1 }) : Promise.resolve(null),
-            window.busesApi ? window.busesApi.list({ page_size: 1 }) : Promise.resolve(null),
-            window.stationsApi ? window.stationsApi.list({ page_size: 1 }) : Promise.resolve(null)
-        ]);
-
-        const localDelta = parseInt(localStorage.getItem('rahaal_local_students_delta') || '0', 10);
-
-        if (usersRes.status === 'fulfilled' && usersRes.value && typeof usersRes.value.total === 'number') {
-            statsData.students = usersRes.value.total;
-        } else {
-            // Real count: reflects only actual local registrations if guest, or 0
-            statsData.students = localDelta;
+        let backendReachable = false;
+        try {
+            const baseUrl = window.CONFIG.getApiBaseUrl();
+            const rootUrl = baseUrl.replace(/\/api\/v1\/?$/, '');
+            const res = await fetch(`${rootUrl}/health/db`);
+            if (res.ok) {
+                const data = await res.json();
+                backendReachable = data?.database === 'connected';
+            }
+        } catch (healthErr) {
+            backendReachable = false;
         }
 
-        if (busesRes.status === 'fulfilled' && busesRes.value && typeof busesRes.value.total === 'number') {
-            statsData.buses = busesRes.value.total;
-        } else {
-            statsData.buses = 0;
+        let students = 0, buses = 0, stations = 0;
+        if (backendReachable && window.CONFIG.getAccessToken()) {
+            const [usersRes, busesRes, stationsRes] = await Promise.allSettled([
+                window.usersApi.list({ role: 'STUDENT', page_size: 1 }),
+                window.busesApi.list({ page_size: 1 }),
+                window.stationsApi.list({ page_size: 1 })
+            ]);
+
+            if (usersRes.status === 'fulfilled' && usersRes.value && typeof usersRes.value.total === 'number') {
+                students = usersRes.value.total;
+            }
+            if (busesRes.status === 'fulfilled' && busesRes.value && typeof busesRes.value.total === 'number') {
+                buses = busesRes.value.total;
+            }
+            if (stationsRes.status === 'fulfilled' && stationsRes.value && typeof stationsRes.value.total === 'number') {
+                stations = stationsRes.value.total;
+            }
         }
 
-        if (stationsRes.status === 'fulfilled' && stationsRes.value && typeof stationsRes.value.total === 'number') {
-            statsData.stations = stationsRes.value.total;
-        } else {
-            statsData.stations = 0;
-        }
+        statsData.students = students;
+        statsData.buses = buses;
+        statsData.stations = stations;
 
         const elStudents = document.getElementById('landing-stat-students');
         const elBuses = document.getElementById('landing-stat-buses');
@@ -3154,22 +3367,6 @@ async function fetchLandingStats() {
         landingStatsLoaded = true;
     } catch (e) {
         console.warn('[Landing Stats Fetch Error]:', e);
-    }
-}
-
-/**
- * Increment local student registrations counter for instant live feedback
- */
-function recordNewStudentRegistration() {
-    const currentDelta = parseInt(localStorage.getItem('rahaal_local_students_delta') || '0', 10);
-    localStorage.setItem('rahaal_local_students_delta', (currentDelta + 1).toString());
-    statsData.students += 1;
-    const elStudents = document.getElementById('landing-stat-students');
-    if (elStudents) {
-        elStudents.setAttribute('data-target', statsData.students);
-        if (elStudents.dataset.animated === 'true') {
-            animateCounter(elStudents);
-        }
     }
 }
 
