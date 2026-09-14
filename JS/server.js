@@ -2,6 +2,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+// Serve from the project root (index.html + JS/ + CSS/) so that relative
+// references like ./JS/script.js resolve correctly.
+const ROOT_DIR = path.join(__dirname, '..');
 const PORT = 3000;
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -18,7 +21,7 @@ const MIME_TYPES = {
 
 const server = http.createServer((req, res) => {
     let reqUrl = req.url.split('?')[0];
-    let filePath = path.join(__dirname, reqUrl === '/' ? 'index.html' : reqUrl);
+    let filePath = path.join(ROOT_DIR, reqUrl === '/' ? 'index.html' : reqUrl.replace(/^\/+/, ''));
 
     fs.stat(filePath, (err, stats) => {
         if (err || !stats.isFile()) {

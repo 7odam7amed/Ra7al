@@ -425,6 +425,10 @@
                                     <p class="text-[10px] text-slate-400 font-bold">تجمع العودة</p>
                                     <p id="sub-stat-return" class="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1">--</p>
                                 </div>
+                                <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                                    <p class="text-[10px] text-slate-400 font-bold">استخدام QR المتبقي</p>
+                                    <p id="sub-stat-qr-usage" class="text-xs font-bold text-brand-primary dark:text-[#6AB9FF] mt-1">--</p>
+                                </div>
                             </div>
                         </div>
 
@@ -536,6 +540,35 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: Profile (read-only) -->
+            <div id="student-tab-profile" class="student-subview hidden space-y-6">
+                <div class="glass-card p-6 rounded-3xl space-y-4 shadow-sm">
+                    <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+                        <h3 class="font-black text-sm text-slate-800 dark:text-white">الملف الشخصي</h3>
+                        <span class="text-[10px] text-slate-400 font-bold">بيانات الحساب (للقراءة فقط)</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                            <p class="text-[10px] text-slate-400 font-bold">الاسم الكامل</p>
+                            <input type="text" id="prof-name" readonly class="w-full bg-transparent text-sm font-black text-slate-800 dark:text-white mt-1 focus:outline-none" >
+                        </div>
+                        <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                            <p class="text-[10px] text-slate-400 font-bold">رقم الهاتف</p>
+                            <p id="prof-phone" class="text-sm font-mono font-black text-slate-800 dark:text-white mt-1" dir="ltr">--</p>
+                        </div>
+                        <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                            <p class="text-[10px] text-slate-400 font-bold">الكلية</p>
+                            <input type="text" id="prof-faculty" readonly class="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-300 mt-1 focus:outline-none">
+                        </div>
+                        <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                            <p class="text-[10px] text-slate-400 font-bold">السنة الدراسية</p>
+                            <input type="text" id="prof-academic-year" readonly class="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-300 mt-1 focus:outline-none">
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">💡 تعديل بيانات الملف الشخصي يتم من قِبل إدارة رحال (CEO). في حال وجود خطأ في بياناتك يرجى التواصل مع الإدارة.</p>
                 </div>
             </div>
         </section>
@@ -883,6 +916,8 @@
                                 <tr>
                                     <th class="p-4">رقم واسم الخط</th>
                                     <th class="p-4">الانطلاق ← الوجهة</th>
+                                    <th class="p-4">المسافة / المدة</th>
+                                    <th class="p-4">المشرف المعين</th>
                                     <th class="p-4">الحالة</th>
                                     <th class="p-4 text-center">العمليات</th>
                                 </tr>
@@ -1143,11 +1178,9 @@
             <form onsubmit="handleSaveBusSubmit(event)" class="space-y-3">
                 <div class="space-y-1.5">
                     <label class="block text-xs font-bold text-slate-400">صورة الحافلة (اختياري)</label>
-                    <input type="file" id="new-bus-image-file" accept="image/*" onchange="handleBusImageSelect(this)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs focus:outline-none file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0B5DAA] file:text-white hover:file:bg-[#6AB9FF] file:cursor-pointer">
-                    <input type="hidden" id="new-bus-image-data" value="">
-                    <div id="bus-image-preview-container" class="hidden mt-2 relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 max-h-36">
-                        <img id="bus-image-preview" src="" alt="معاينة صورة الحافلة" class="w-full h-36 object-cover">
-                        <button type="button" onclick="clearBusImagePreview()" class="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs border-0 cursor-pointer">×</button>
+                    <input type="file" id="new-bus-image-file" accept="image/jpeg,image/png,image/webp" onchange="handleBusImageSelect(this)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs focus:outline-none file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0B5DAA] file:text-white hover:file:bg-[#6AB9FF] file:cursor-pointer">
+                    <div class="bus-image-preview-container hidden mt-2 relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 max-h-36">
+                        <img class="bus-image-preview-img w-full h-36 object-cover" alt="معاينة صورة الحافلة">
                     </div>
                 </div>
                 <input type="hidden" id="bus-edit-id" value="">
@@ -1173,6 +1206,10 @@
                 <input type="text" id="station-name-input" required placeholder="اسم المحطة (مثال: موقف الفريال)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                 <input type="text" id="station-code-input" required placeholder="كود المحطة (مثال: ST-FERYAL-01)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                 <input type="text" id="station-address-input" placeholder="العنوان التفصيلي" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="number" step="any" id="station-lat-input" placeholder="خط العرض (Latitude)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                    <input type="number" step="any" id="station-lng-input" placeholder="خط الطول (Longitude)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                </div>
                 <div class="flex gap-2 pt-2">
                     <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ المحطة</button>
                     <button type="button" onclick="closeModal('add-station-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
@@ -1200,7 +1237,23 @@
                         <label class="block text-[10px] text-slate-400 font-bold mb-1">محطة الوصول (Destination)</label>
                         <select id="route-dest-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
                     </div>
-                </div>             
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">المسافة (كم)</label>
+                        <input type="number" step="0.1" min="0.1" id="route-dist-input" placeholder="مثال: 15.5" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">المدة التقديرية (دقيقة)</label>
+                        <input type="number" min="1" id="route-dur-input" placeholder="مثال: 35" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">مشرف الخط (اختياري)</label>
+                    <select id="route-sup-select" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                        <option value="">بدون مشرف</option>
+                    </select>
+                </div>
                 <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                     <div class="flex items-center justify-between">
                         <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">نقاط التوقف (Waypoints)</label>
@@ -1341,14 +1394,20 @@
             <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">إضافة باقة اشتراك جديدة</h3>
             <form onsubmit="handleCreatePlanSubmit(event)" class="space-y-3">
                 <input type="text" id="plan-name-input" required placeholder="اسم الباقة (مثال: باقة الفصل الدراسي الكامل)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                <select id="plan-type-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                    <option value="DAILY">يومي (DAILY)</option>
-                    <option value="WEEKLY">أسبوعي (WEEKLY)</option>
-                    <option value="MONTHLY">شهري (MONTHLY)</option>
-                    <option value="TERM">فصل دراسي (TERM)</option>
-                </select>
-                <input type="number" step="0.5" id="plan-price-input" required placeholder="السعر بالجنيه المصري (EGP)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                <input type="number" id="plan-duration-input" required placeholder="عدد الايام في الاسبوع" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">نوع الباقة</label>
+                    <select id="plan-type-select" onchange="onPlanTypeChange()" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                        <option value="DAILY">يومي (DAILY)</option>
+                        <option value="WEEKLY" selected>أسبوعي (WEEKLY)</option>
+                        <option value="MONTHLY">شهري (MONTHLY)</option>
+                        <option value="TERM">فصل دراسي (TERM)</option>
+                    </select>
+                </div>
+                <input type="number" step="0.5" min="0.5" id="plan-price-input" required placeholder="السعر بالجنيه المصري (EGP)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <div>
+                    <input type="number" id="plan-duration-input" min="1" max="730" required placeholder="مدة الباقة بالأيام (1 - 730)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                    <p id="plan-duration-hint" class="text-[10px] text-slate-400 mt-1">مدة حرة يحددها المدير التنفيذي: من 1 إلى 730 يوم.</p>
+                </div>
                 <div class="flex gap-2 pt-2">
                     <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ الباقة</button>
                     <button type="button" onclick="closeModal('add-plan-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
@@ -1444,6 +1503,29 @@
         </div>
     </div>
 
+    <!-- 12b. Replace / Remove Bus Image Modal (CEO) -->
+    <div id="bus-image-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">صورة الحافلة</h3>
+            <p id="bus-image-modal-context" class="text-xs text-slate-400 font-bold"></p>
+            <form onsubmit="handleReplaceBusImageSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">صورة جديدة (JPG / PNG / WEBP — بحد أقصى 5 ميجابايت)</label>
+                    <input type="file" id="bus-image-replace-file" accept="image/jpeg,image/png,image/webp" required onchange="handleBusImageSelect(this)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0B5DAA] file:text-white hover:file:bg-[#6AB9FF] file:cursor-pointer">
+                    <div class="bus-image-preview-container hidden mt-2 relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 max-h-36">
+                        <img class="bus-image-preview-img w-full h-36 object-cover" alt="معاينة صورة الحافلة">
+                        <button type="button" onclick="clearBusImagePreview()" class="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs border-0 cursor-pointer">×</button>
+                    </div>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">تحديث الصورة</button>
+                    <button type="button" id="bus-image-remove-btn" onclick="removeBusImage()" class="hidden flex-1 bg-rose-500/10 hover:bg-rose-500 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-rose-500 hover:text-white">إزالة الصورة</button>
+                    <button type="button" onclick="closeModal('bus-image-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- 13. Submit Payment Proof Modal (Student) -->
     <div id="submit-payment-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
         <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
@@ -1466,6 +1548,38 @@
         </div>
     </div>
 
+
+    <!-- 13b. Create Reservation Payment Modal (Student) -->
+    <div id="create-reservation-payment-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">دفع تكلفة الحجز</h3>
+            <p class="text-xs text-slate-400">المبلغ المستحق: <span id="create-pay-amount-text" class="font-black text-slate-700 dark:text-slate-200">--</span> (يُحسب من سعر الرحلة في النظام)</p>
+            <form onsubmit="handleCreateReservationPaymentSubmit(event)" class="space-y-3">
+                <input type="hidden" id="create-pay-reservation-id" value="">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">طريقة الدفع</label>
+                    <select id="create-pay-method" onchange="onCreateReservationPayMethodChange()" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                        <option value="CASH">نقدًا (مع المشرف)</option>
+                        <option value="VODAFONE_CASH">فودافون كاش (Vodafone Cash)</option>
+                        <option value="INSTAPAY">انستاباي (InstaPay)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">رقم مرجع التحويل (مطلوب للدفع الرقمي)</label>
+                    <input type="text" id="create-pay-ref" placeholder="مثال: VC-123456789" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">ملاحظات (اختياري)</label>
+                    <textarea id="create-pay-notes" rows="2" placeholder="تم التحويل من رقم 010xxxxxxxx" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs focus:outline-none"></textarea>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">إرسال الدفع للمراجعة</button>
+                    <button type="button" onclick="closeModal('create-reservation-payment-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">لاحقاً</button>
+    
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- ================= JAVASCRIPT APPLICATION CODE ================= -->
     <script src="./JS/config.js"></script>
