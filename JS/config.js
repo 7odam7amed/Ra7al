@@ -5,7 +5,8 @@ const CONFIG = {
     STORAGE_KEYS: {
         TOKEN: 'rahaal_access_token',
         USER: 'rahaal_user_data',
-        API_BASE_URL: 'rahaal_api_base_url'
+        API_BASE_URL: 'rahaal_api_base_url',
+        PENDING_PHONE: 'rahaal_pending_otp_phone'
     },
 
     getApiBaseUrl() {
@@ -60,6 +61,18 @@ const CONFIG = {
             localStorage.removeItem(this.STORAGE_KEYS.USER);
         }
     },
+
+    getPendingPhone() {
+        return localStorage.getItem(this.STORAGE_KEYS.PENDING_PHONE);
+    },
+
+    setPendingPhone(phone) {
+        if (phone) {
+            localStorage.setItem(this.STORAGE_KEYS.PENDING_PHONE, phone);
+        } else {
+            localStorage.removeItem(this.STORAGE_KEYS.PENDING_PHONE);
+        }
+    }
 };
 
 window.CONFIG = CONFIG;

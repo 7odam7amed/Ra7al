@@ -91,13 +91,6 @@ const ApiClient = {
         const parsedMessage = this.extractErrorMessage(response.status, responseData);
         const apiError = new ApiError(response.status, parsedMessage, responseData, responseData);
 
-        // Surface rate-limit window (ERRORS.md §5: honor Retry-After seconds)
-        const retryAfterHeader = response.headers.get('Retry-After');
-        if (retryAfterHeader) {
-            const parsedRetry = parseInt(retryAfterHeader, 10);
-            apiError.retryAfterSeconds = Number.isFinite(parsedRetry) ? parsedRetry : null;
-        }
-
         // Centralized Error Handling
         this.handleError(apiError);
         throw apiError;
@@ -185,60 +178,18 @@ const ApiClient = {
             return;
         }
 
-        // Handle other standard codes with toasts if available (ERRORS.md §6)
+        // Handle other standard codes with toasts if available
         if (window.showToast) {
             if (error.status === 403) {
-                // Backend detail messages are user-appropriate (RBAC.md §5): pending / rejected / not assigned...
-                window.showToast(error.message || 'ليس لديك الصلاحيات الكافية للقيام بهذا الإجراء.', 'error');
-            } else if (error.status === 404) {
-                window.showToast(error.message || 'العنصر المطلوب غير موجود.', 'error');
-            } else if (error.status === 409) {
-                window.showToast(error.message || 'يوجد تعارض مع بيانات مسجلة مسبقاً.', 'error');
-            } else if (error.status === 422) {
-                window.showToast(error.message || 'بيانات غير صحيحة.', 'error');
+                window.showToast('صلاحية غير مسموحة: ' + error.message, 'error');
             } else if (error.status === 429) {
-                const retryInfo = error.retryAfterSeconds ? ` (أعد المحاولة بعد ${error.retryAfterSeconds} ثانية)` : '';
-                window.showToast('تجاوزت الحد المسموح من الطلبات' + retryInfo + '.', 'error');
+                window.showToast('تجاوزت الحد المسموح: ' + error.message, 'error');
+            } else if (error.status === 422) {
+                window.showToast('بيانات غير صحيحة: ' + error.message, 'error');
             } else if (error.status >= 500) {
                 window.showToast('خطأ في السيرفر: ' + error.message, 'error');
             }
         }
-    },
-
-    /**
-     * Fetch an authorized binary resource (e.g. bus/ID-card images) as a Blob.
-     * The Authorization header is attached, so the result must be used via
-     * URL.createObjectURL() — never through a plain <img src>.
-     */
-    async requestBlob(endpoint) {
-        const baseUrl = window.CONFIG.getApiBaseUrl();
-        const url = new URL(`${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`);
-
-        const headers = new Headers();
-        const token = window.CONFIG.getAccessToken();
-        if (token) {
-            headers.set('Authorization', `Bearer ${token}`);
-        }
-
-        let response;
-        try {
-            response = await fetch(url.toString(), { method: 'GET', headers });
-        } catch (networkError) {
-            throw new ApiError(0, 'تعذر الاتصال بالخادم.');
-        }
-
-        if (!response.ok) {
-            let errorData = null;
-            const contentType = response.headers.get('content-type') || '';
-            if (contentType.includes('application/json')) {
-                try { errorData = await response.json(); } catch (e) { errorData = null; }
-            }
-            const err = new ApiError(response.status, this.extractErrorMessage(response.status, errorData), errorData, errorData);
-            this.handleError(err);
-            throw err;
-        }
-
-        return await response.blob();
     }
 };
 
@@ -307,9 +258,6 @@ const usersApi = {
     async list(params = {}) {
         return ApiClient.request('/users', { params });
     },
-    async listPending(params = {}) {
-        return ApiClient.request('/users/pending', { params });
-    },
     async createSupervisor(data) {
         return ApiClient.request('/users/supervisors', {
             method: 'POST',
@@ -325,16 +273,19 @@ const usersApi = {
             body: data
         });
     },
-    /**
-     * PATCH /users/{user_id}/status — CEO.
-     * Body must contain at least one of is_active / status.
-     * NOTE: do NOT send "ACTIVE" — it is a legacy input alias only (ENUMS.md);
-     * the API always returns APPROVED.
-     */
+    async updateRole(userId, role) {
+        return ApiClient.request(`/users/${userId}/role`, {
+            method: 'PATCH',
+            body: { role }
+        });
+    },
     async updateStatus(userId, isActive) {
         return ApiClient.request(`/users/${userId}/status`, {
             method: 'PATCH',
-            body: { is_active: Boolean(isActive) }
+            body: { 
+                is_active: Boolean(isActive),
+                status: isActive ? 'ACTIVE' : 'INACTIVE'
+            }
         });
     },
     async approve(userId) {
@@ -348,11 +299,8 @@ const usersApi = {
             body: reason ? { reason } : {}
         });
     },
-    /**
-     * GET /users/{user_id}/id-card — streams image bytes (CEO / owner student).
-     */
     async getIdCard(userId) {
-        return ApiClient.requestBlob(`/users/${userId}/id-card`);
+        return ApiClient.request(`/users/${userId}/id-card`);
     }
 };
 
@@ -391,24 +339,7 @@ const busesApi = {
     async getById(busId) {
         return ApiClient.request(`/buses/${busId}`);
     },
-    /**
-     * POST /buses — CEO. JSON (no image) or multipart/form-data (with image,
-     * field "image"). Never send a bus image as base64 JSON (FILE_UPLOADS.md).
-     */
-    async create(data, imageFile = null) {
-        if (imageFile) {
-            const formData = new FormData();
-            Object.entries(data).forEach(([key, value]) => {
-                if (value !== undefined && value !== null && value !== '') {
-                    formData.append(key, String(value));
-                }
-            });
-            formData.append('image', imageFile);
-            return ApiClient.request('/buses', {
-                method: 'POST',
-                body: formData
-            });
-        }
+    async create(data) {
         return ApiClient.request('/buses', {
             method: 'POST',
             body: data
@@ -434,13 +365,8 @@ const busesApi = {
     async getImageMetadata(busId) {
         return ApiClient.request(`/buses/${busId}/image/metadata`);
     },
-    /**
-     * GET /buses/{bus_id}/image — streams authorized bytes as a Blob.
-     * Access: CEO any bus, assigned supervisor, or student with a CONFIRMED
-     * reservation on a trip using this bus (RBAC.md §4).
-     */
     async getImage(busId) {
-        return ApiClient.requestBlob(`/buses/${busId}/image`);
+        return ApiClient.request(`/buses/${busId}/image`);
     },
     async updateImage(busId, file) {
         const formData = new FormData();
