@@ -1289,6 +1289,52 @@
         </div>
     </div>
 
+    <!-- 9b. Manage Trip Pickup Points Modal (CEO) -->
+    <div id="manage-pickup-points-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">إدارة نقاط التجمع للرحلة</h3>
+                <button type="button" onclick="closeModal('manage-pickup-points-modal')" class="bg-transparent border-0 cursor-pointer text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl">نقاط التجمع هي مواقع صعود الطلاب، ويختار منها الطالب نقطة الذهاب/العودة عند الاشتراك. يجب تعيينها لرحلات الخط حتى يتمكن الطلاب من إتمام الاشتراك.</p>
+            <p id="pickup-trip-context" class="text-[11px] text-slate-500 font-bold"></p>
+
+            <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+                <table class="w-full text-right text-xs">
+                    <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                        <tr>
+                            <th class="p-3">الاسم</th>
+                            <th class="p-3">العنوان</th>
+                            <th class="p-3">الترتيب</th>
+                            <th class="p-3 text-center">حذف</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pickup-points-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                        <tr><td colspan="4" class="p-4 text-center text-slate-400">جاري التحميل...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <form onsubmit="handleAddPickupPoint(event)" class="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">اسم نقطة التجمع</label>
+                        <input type="text" id="pickup-name-input" required placeholder="مثال: بوابة القاهرة 3" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">الترتيب (Sequence)</label>
+                        <input type="number" id="pickup-sequence-input" min="1" value="1" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">العنوان (اختياري)</label>
+                    <input type="text" id="pickup-address-input" placeholder="مثال: الجيزة، شارع الجامعة" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                </div>
+                <button type="submit" class="w-full btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> إضافة نقطة التجمع</button>
+            </form>
+        </div>
+    </div>
+
     <!-- 10. Add Subscription Plan Modal (CEO) -->
     <div id="add-plan-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
         <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
@@ -1297,7 +1343,7 @@
                 <input type="text" id="plan-name-input" required placeholder="اسم الباقة (مثال: باقة الفصل الدراسي الكامل)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                 <select id="plan-type-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                     <option value="DAILY">يومي (DAILY)</option>
-                    <option value="Weekly">اسبوعي (Weekly)</option>
+                    <option value="WEEKLY">أسبوعي (WEEKLY)</option>
                     <option value="MONTHLY">شهري (MONTHLY)</option>
                     <option value="TERM">فصل دراسي (TERM)</option>
                 </select>

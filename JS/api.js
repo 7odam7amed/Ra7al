@@ -226,33 +226,6 @@ const authApi = {
     },
 
     /**
-     * POST /api/v1/auth/verify-otp
-     * Verify WhatsApp OTP code
-     */
-    async verifyOtp(phoneNumber, otpCode) {
-        return ApiClient.request('/auth/verify-otp', {
-            method: 'POST',
-            body: {
-                phone_number: phoneNumber,
-                otp_code: otpCode
-            }
-        });
-    },
-
-    /**
-     * POST /api/v1/auth/resend-otp
-     * Request a new OTP
-     */
-    async resendOtp(phoneNumber) {
-        return ApiClient.request('/auth/resend-otp', {
-            method: 'POST',
-            body: {
-                phone_number: phoneNumber
-            }
-        });
-    },
-
-    /**
      * POST /api/v1/auth/login
      * OAuth2 Password form login
      */
@@ -315,11 +288,16 @@ const usersApi = {
             }
         });
     },
-    async confirmUser(userId) {
-        return this.updateStatus(userId, true);
+    async approve(userId) {
+        return ApiClient.request(`/users/${userId}/approve`, {
+            method: 'PATCH'
+        });
     },
-    async rejectUser(userId) {
-        return this.updateStatus(userId, false);
+    async reject(userId, reason = '') {
+        return ApiClient.request(`/users/${userId}/reject`, {
+            method: 'PATCH',
+            body: reason ? { reason } : {}
+        });
     },
     async getIdCard(userId) {
         return ApiClient.request(`/users/${userId}/id-card`);
@@ -381,6 +359,25 @@ const busesApi = {
     },
     async delete(busId) {
         return ApiClient.request(`/buses/${busId}`, {
+            method: 'DELETE'
+        });
+    },
+    async getImageMetadata(busId) {
+        return ApiClient.request(`/buses/${busId}/image/metadata`);
+    },
+    async getImage(busId) {
+        return ApiClient.request(`/buses/${busId}/image`);
+    },
+    async updateImage(busId, file) {
+        const formData = new FormData();
+        formData.append('image', file);
+        return ApiClient.request(`/buses/${busId}/image`, {
+            method: 'PATCH',
+            body: formData
+        });
+    },
+    async deleteImage(busId) {
+        return ApiClient.request(`/buses/${busId}/image`, {
             method: 'DELETE'
         });
     }
@@ -663,6 +660,11 @@ const subscriptionsApi = {
     },
     async cancel(subscriptionId) {
         return ApiClient.request(`/subscriptions/${subscriptionId}/cancel`, {
+            method: 'PATCH'
+        });
+    },
+    async renew(subscriptionId) {
+        return ApiClient.request(`/subscriptions/${subscriptionId}/renew`, {
             method: 'PATCH'
         });
     }

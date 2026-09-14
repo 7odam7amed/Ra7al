@@ -9,8 +9,17 @@ let cachedBuses = [];
 let cachedSupervisors = [];
 let activeSubscriptionQR = null;
 let currentSupervisorTripId = null;
-let studentAvailableTrips = new Map();
 let selectedStudentTrip = null;
+let buySubRoutesCache = new Map();
+let currentPickupTripId = null;
+
+// SubscriptionPlanType enum → Arabic labels (source of truth: ENUMS.md).
+const PLAN_TYPE_LABELS = {
+    DAILY: 'يومي',
+    WEEKLY: 'أسبوعي',
+    MONTHLY: 'شهري',
+    TERM: 'فصل دراسي'
+};
 
 // Rejected phone helpers for account deactivation / rejection enforcement
 function getRejectedPhoneSet() {
@@ -434,7 +443,8 @@ async function handleRegisterSubmit(e) {
         const uploadRes = await window.authApi.uploadIdCard(cardFileInput.files[0]);
 
         // Find reference path in response
-        const cardRefPath = uploadRes.file_path || uploadRes.reference_path || uploadRes.path || Object.values(uploadRes)[0] || 'uploads/id_cards/default.png';
+        const cardRefPath = uploadRes?.image_path;
+        if (!cardRefPath) throw new Error('لم يُرجع الخادم مسار صورة الكارنيه. حاول رفع الصورة مرة أخرى.');
 
         // Step 2: Register user
         showToast('جاري تسجيل بيانات الحساب وإرسالها للمراجعة...', 'info');
@@ -499,29 +509,6 @@ function closeRegPendingModalAndLogin() {
     showLogin();
 }
 
-/**
- * Fallback helpers
- */
-function showOtpVerificationModal(phone) {
-    const pendingModal = document.getElementById('reg-pending-modal');
-    if (pendingModal) pendingModal.classList.remove('hidden');
-}
-
-function closeOtpModal() {
-    const modal = document.getElementById('otp-view') || document.getElementById('reg-pending-modal');
-    if (modal) modal.classList.add('hidden');
-}
-
-async function handleOtpSubmit(e) {
-    if (e) e.preventDefault();
-    closeOtpModal();
-    showLogin();
-}
-
-async function handleResendOtp() {
-    showToast('تم إرسال بياناتك للمراجعة من قبل الإدارة.', 'info');
-}
-
 // ============================================================
 // STUDENT DASHBOARD CONTROLLERS
 // ============================================================
@@ -541,7 +528,9 @@ function switchStudentTab(tabId, btnElement) {
         btnElement.className = "student-tab-btn px-4 py-2.5 rounded-xl text-xs font-black bg-brand-primary text-white border-0 cursor-pointer fast-transition";
     }
 
-    if (tabId === 'trips-booking') {
+    if (tabId === 'sub-card') {
+        loadStudentDashboard();
+    } else if (tabId === 'trips-booking') {
         loadAvailableSubscriptionPlansForStudent();
         loadMyReservations();
     } else if (tabId === 'payments') {
@@ -566,28 +555,36 @@ async function loadStudentDashboard() {
     if (profFaculty) profFaculty.value = currentUser.faculty || '';
     if (profYear) profYear.value = currentUser.academic_year || '';
 
-    // Load active subscription
+    // Load subscription (prefer ACTIVE; otherwise show the most recent one so payment state stays visible)
     try {
         const subsRes = await window.subscriptionsApi.listMy({ page_size: 10 });
         const items = subsRes?.items || [];
-        const activeSub = items.find(s => s.status === 'ACTIVE') || items[0];
+        const activeSub = items.find(s => s.status === 'ACTIVE');
+        const displaySub = activeSub || items[0] || null;
 
-        if (activeSub) {
-            document.getElementById('sub-stat-plan').innerText = activeSub.plan?.name || activeSub.plan_type || 'باقة نقل';
-            document.getElementById('sub-stat-rides').innerText = `${activeSub.boarding_count || 0} رحلة`;
-            document.getElementById('sub-stat-outbound').innerText = activeSub.outbound_pickup_point?.name || 'موقف محدد';
-            document.getElementById('sub-stat-return').innerText = activeSub.return_pickup_point?.name || (activeSub.return_pickup_mode === 'SAME_AS_OUTBOUND' ? 'نفس محطة الذهاب' : '--');
+        if (displaySub) {
+            setElementText('sub-stat-plan', displaySub.plan?.name || PLAN_TYPE_LABELS[displaySub.plan_type] || displaySub.plan_type || 'باقة نقل');
+            setElementText('sub-stat-rides', `${displaySub.boarding_count || 0} رحلة`);
+            setElementText('sub-stat-outbound', displaySub.outbound_pickup_point?.name || 'لم تُحدد نقطة تجمع');
+            setElementText('sub-stat-return', displaySub.return_pickup_point?.name || (displaySub.return_pickup_mode === 'SAME_AS_OUTBOUND' ? 'نفس محطة الذهاب' : '--'));
 
-            // Load QR Code
-            loadStudentQRCode(activeSub.id);
-            // Load Boarding history
-            loadStudentBoardingHistory(activeSub.id);
+            // QR is valid only for ACTIVE subscriptions — the backend rejects GET /subscriptions/{id}/qr otherwise.
+            if (displaySub.status === 'ACTIVE') {
+                loadStudentQRCode(displaySub.id);
+            } else {
+                renderNonActiveSubscriptionState(displaySub);
+            }
+            loadStudentBoardingHistory(displaySub.id);
         } else {
             renderEmptyQRCode('لا يوجد اشتراك نشط حالياً. اضغط على "شراء اشتراك جديد" للبدء.');
+            setQrStatusBadge(null);
+            setElementText('student-qr-route-name', 'خط السير: --');
+            setElementText('student-qr-validity', 'الصلاحية: -- إلى --');
         }
     } catch (e) {
         console.warn('Could not load student subscriptions:', e);
         renderEmptyQRCode('تعذر تحميل بيانات الاشتراك');
+        setQrStatusBadge(null);
     }
 }
 
@@ -609,15 +606,16 @@ async function loadStudentQRCode(subId) {
                 correctLevel: QRCode.CorrectLevel.H
             });
 
-            document.getElementById('student-qr-route-name').innerText = `خط السير: ${qrData.route_name || 'الخط المعتمد'}`;
-            document.getElementById('student-qr-validity').innerText = `الصلاحية: من ${qrData.valid_from} إلى ${qrData.valid_until}`;
-            const statusBadge = document.getElementById('student-qr-status');
-            if (statusBadge) {
-                statusBadge.innerText = qrData.status === 'ACTIVE' ? 'نشط' : qrData.status;
-            }
+            setElementText('student-qr-route-name', `خط السير: ${qrData.route_name || 'الخط المعتمد'}`);
+            setElementText('student-qr-validity', `الصلاحية: من ${qrData.valid_from || '--'} إلى ${qrData.valid_until || '--'}`);
+            setQrStatusBadge(qrData.status || 'ACTIVE');
+        } else {
+            renderEmptyQRCode('تعذر إنشاء كود الـ QR');
         }
     } catch (e) {
-        renderEmptyQRCode('تعذر إنشاء كود الـ QR');
+        // GET /subscriptions/{id}/qr returns 422 unless the subscription is ACTIVE.
+        renderEmptyQRCode('كود QR متاح فقط بعد تفعيل الاشتراك (تأكيد الدفع).');
+        setQrStatusBadge(null);
     }
 }
 
@@ -626,6 +624,47 @@ function renderEmptyQRCode(msg) {
     if (qrBox) {
         qrBox.innerHTML = `<div class="text-center p-3 text-slate-400 text-xs font-bold"><i class="fa-solid fa-ticket text-2xl mb-1 block"></i>${msg}</div>`;
     }
+}
+
+function setElementText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = text;
+}
+
+function setQrStatusBadge(status) {
+    const badge = document.getElementById('student-qr-status');
+    if (!badge) return;
+    const map = {
+        ACTIVE: { text: 'نشط', cls: 'bg-emerald-500/10 text-emerald-500' },
+        PENDING: { text: 'بانتظار التفعيل', cls: 'bg-amber-500/10 text-amber-500' },
+        EXPIRED: { text: 'منتهي', cls: 'bg-slate-500/10 text-slate-400' },
+        CANCELLED: { text: 'ملغي', cls: 'bg-rose-500/10 text-rose-500' }
+    };
+    const conf = (status && map[status]) || { text: status || 'لا يوجد', cls: 'bg-slate-500/10 text-slate-400' };
+    badge.innerText = conf.text;
+    badge.className = `px-2 py-0.5 rounded-full text-[10px] font-black ${conf.cls}`;
+}
+
+function renderNonActiveSubscriptionState(sub) {
+    const status = sub?.status;
+    const payStatus = sub?.payment_status || sub?.payment?.status || null;
+    let msg;
+    if (status === 'PENDING') {
+        msg = payStatus === 'SUBMITTED'
+            ? 'تم إرسال إثبات الدفع — الاشتراك بانتظار تأكيد الإدارة. سيظهر كود QR بعد الاعتماد.'
+            : 'الاشتراك بانتظار الدفع وتأكيد الإدارة. سيظهر كود QR بعد تفعيل الاشتراك.';
+    } else if (status === 'EXPIRED') {
+        msg = 'انتهت صلاحية هذا الاشتراك. يمكنك تجديده للحصول على كود QR جديد.';
+    } else if (status === 'CANCELLED') {
+        msg = 'تم إلغاء هذا الاشتراك.';
+    } else {
+        msg = `الاشتراك بحالة ${status || 'غير معروفة'} — كود QR متاح فقط للاشتراكات النشطة.`;
+    }
+    renderEmptyQRCode(msg);
+    setQrStatusBadge(status);
+    const routeName = sub?.route?.name || (sub?.route_id ? `خط #${sub.route_id}` : '--');
+    setElementText('student-qr-route-name', `خط السير: ${routeName}`);
+    setElementText('student-qr-validity', (sub?.start_date && sub?.end_date) ? `الصلاحية: من ${sub.start_date} إلى ${sub.end_date}` : 'الصلاحية: -- إلى --');
 }
 
 async function loadStudentBoardingHistory(subId) {
@@ -684,15 +723,8 @@ async function loadAvailableSubscriptionPlansForStudent() {
 
         if (plans.length > 0) {
             tbody.innerHTML = '';
-            const planTypeMap = {
-                DAILY: 'يومي',
-                WEEKLY: 'أسبوعي',
-                MONTHLY: 'شهري',
-                SEMESTERLY: 'فصل دراسي',
-                YEARLY: 'سنوي'
-            };
             plans.forEach(p => {
-                const planType = planTypeMap[p.plan_type] || p.plan_type || '--';
+                const planType = PLAN_TYPE_LABELS[p.plan_type] || p.plan_type || '--';
                 const duration = p.duration_days ? `${p.duration_days} يوم` : '--';
                 const price = p.price ? `${parseFloat(p.price).toLocaleString('ar-EG')} ${p.currency || 'EGP'}` : '--';
                 tbody.innerHTML += `
@@ -886,7 +918,56 @@ async function handleSubmitPaymentProof(e) {
 /**
  * Buy Subscription Workflow
  */
-function populateBuySubscriptionPickupPoints(pickupPoints) {
+// نقاط التجمع مرتبطة برحلة (per-trip). نجمعها من الرحلات المتاحة على الخط إن أرجعها الـBackend.
+function collectPickupPointsFromTrips(trips) {
+    const seen = new Set();
+    const points = [];
+    (Array.isArray(trips) ? trips : []).forEach(trip => {
+        (Array.isArray(trip?.pickup_points) ? trip.pickup_points : []).forEach(point => {
+            const id = Number(point?.id);
+            if (point && Number.isInteger(id) && id > 0 && !seen.has(id)) {
+                seen.add(id);
+                points.push(point);
+            }
+        });
+    });
+    return points;
+}
+
+// يعرض خط السير الحقيقي (الانطلاق/التوقفات/الوصول) من RouteResponse.
+function renderRouteItinerary(route) {
+    const box = document.getElementById('buy-sub-trip-context');
+    if (!box) return;
+    if (!route) {
+        box.classList.add('hidden');
+        box.innerHTML = '';
+        return;
+    }
+    const origin = route.origin_station?.name || '—';
+    const destination = route.destination_station?.name || '—';
+    const stops = Array.isArray(route.stops)
+        ? route.stops.slice()
+            .sort((a, b) => (a.stop_order || 0) - (b.stop_order || 0))
+            .map(s => s.station?.name)
+            .filter(Boolean)
+        : [];
+    const stopsText = stops.length ? stops.join('، ') : 'لا توجد توقفات وسطية';
+    const metaBits = [
+        route.route_number ? `رقم الخط: ${route.route_number}` : '',
+        route.distance_km ? `المسافة: ${route.distance_km} كم` : '',
+        route.estimated_duration_minutes ? `المدة التقديرية: ${route.estimated_duration_minutes} دقيقة` : ''
+    ].filter(Boolean);
+
+    box.classList.remove('hidden');
+    box.innerHTML = `
+        <div class="font-black text-brand-primary mb-1"><i class="fa-solid fa-route ml-1"></i> خط السير: ${route.name || '—'}</div>
+        <div class="font-bold text-slate-700 dark:text-slate-200">الانطلاق: ${origin} • الوصول: ${destination}</div>
+        <div class="mt-0.5">التوقفات: ${stopsText}</div>
+        ${metaBits.length ? `<div class="text-[10px] text-slate-400 mt-1">${metaBits.join(' • ')}</div>` : ''}
+    `;
+}
+
+function populateBuySubscriptionPickupPoints(pickupPoints, tripCount = 0, errored = false) {
     const outboundSelect = document.getElementById('buy-sub-outbound-pickup');
     const returnSelect = document.getElementById('buy-sub-return-pickup');
     const validPickupPoints = (Array.isArray(pickupPoints) ? pickupPoints : [])
@@ -896,9 +977,18 @@ function populateBuySubscriptionPickupPoints(pickupPoints) {
             label: `${point.name || 'نقطة تجمع'}${point.address ? ` — ${point.address}` : ''}`
         }));
 
+    let emptyMessage;
+    if (errored) {
+        emptyMessage = 'تعذر تحميل نقاط التجمع لهذا الخط. حاول مرة أخرى.';
+    } else if (!tripCount) {
+        emptyMessage = 'لا توجد رحلات متاحة على هذا الخط حالياً.';
+    } else {
+        emptyMessage = 'لا توجد نقاط تجمع متاحة لهذا الخط. يجب أن تعيّن الإدارة نقاط التجمع لرحلات هذا الخط.';
+    }
+
     const optionsHtml = validPickupPoints.length
         ? validPickupPoints.map(point => `<option value="${point.id}">${point.label}</option>`).join('')
-        : '<option value="">لا توجد نقاط تجمع مهيّأة لهذه الرحلة</option>';
+        : `<option value="">${emptyMessage}</option>`;
 
     [outboundSelect, returnSelect].forEach(select => {
         if (select) {
@@ -914,120 +1004,113 @@ async function openBuySubscriptionModal(selectedTripId = null, preselectedPlanId
     const modal = document.getElementById('buy-subscription-modal');
     if (!modal) return;
 
+    const routeSelect = document.getElementById('buy-sub-route-select');
+    const planSelect = document.getElementById('buy-sub-plan-select');
+    const outboundSelect = document.getElementById('buy-sub-outbound-pickup');
+    const returnSelect = document.getElementById('buy-sub-return-pickup');
+    const returnMode = document.getElementById('buy-sub-return-mode');
+    const startDate = document.getElementById('buy-sub-start-date');
+
+    // إعادة تعيين الحالة المرتبطة بأي فتح سابق
+    selectedStudentTrip = null;
+    buySubRoutesCache = new Map();
+    renderRouteItinerary(null);
+    if (returnMode) returnMode.value = 'SAME_AS_OUTBOUND';
+    toggleReturnPickupSelector();
+    [outboundSelect, returnSelect].forEach(s => {
+        if (s) { s.innerHTML = '<option value="">اختر خط السير أولاً</option>'; s.disabled = true; s.dataset.validPickupPoints = 'false'; }
+    });
+
+    // تاريخ البدء الافتراضي: الغد (الـAPI يرفض أي تاريخ في الماضي)
+    if (startDate) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        startDate.value = tomorrow.toISOString().slice(0, 10);
+    }
+
+    modal.classList.remove('hidden');
+
+    // تحميل خطوط السير النشطة (الطالب لديه صلاحية قراءة فقط على /routes)
+    routeSelect.disabled = true;
+    routeSelect.innerHTML = '<option value="">⏳ جاري تحميل خطوط السير...</option>';
     try {
-        const routeSelect = document.getElementById('buy-sub-route-select');
-        const planSelect = document.getElementById('buy-sub-plan-select');
-        const tripContext = document.getElementById('buy-sub-trip-context');
-
-        // إذا تم الاستدعاء من رحلة محددة (المسار القديم)
-        if (selectedTripId) {
-            selectedStudentTrip = studentAvailableTrips.get(Number(selectedTripId)) || null;
-            const selectedRoute = selectedStudentTrip?.route || null;
-            const routeId = selectedStudentTrip?.route_id || selectedRoute?.id;
-
-            if (!selectedStudentTrip || !routeId) {
-                showToast('تعذر تحديد بيانات الرحلة. حدّث قائمة الباقات ثم حاول مجددًا.', 'error');
-                return;
-            }
-
-            routeSelect.innerHTML = `<option value="${routeId}">${selectedRoute?.route_number ? `${selectedRoute.route_number} - ` : ''}${selectedRoute?.name || `خط #${routeId}`}</option>`;
-            routeSelect.value = String(routeId);
-            routeSelect.disabled = true;
-            populateBuySubscriptionPickupPoints(selectedStudentTrip.pickup_points);
-
-            if (tripContext) {
-                const departure = new Date(selectedStudentTrip.departure_time).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
-                tripContext.classList.remove('hidden');
-                tripContext.innerHTML = `<i class="fa-solid fa-bus ml-1 text-brand-primary"></i> الرحلة المختارة: <strong>${selectedRoute?.name || `خط #${routeId}`}</strong> — ${departure}`;
-            }
-
-            const startDate = document.getElementById('buy-sub-start-date');
-            if (startDate && selectedStudentTrip.departure_time) startDate.value = selectedStudentTrip.departure_time.slice(0, 10);
-        } else {
-            // المسار الجديد: فتح المودال من باقة - يختار الطالب الخط بنفسه
-            selectedStudentTrip = null;
-
-            // يحصل الطالب على الخطوط من رحلاته المتاحة؛ /routes مخصص للإدارة والمشرفين.
-            routeSelect.disabled = false;
-            routeSelect.innerHTML = '<option value="">⏳ جاري تحميل الرحلات المتاحة...</option>';
-
-            try {
-                const tripsRes = await window.reservationsApi.listAvailableTrips({ page_size: 100 });
-                const trips = Array.isArray(tripsRes) ? tripsRes : (tripsRes?.items || tripsRes?.data || []);
-                studentAvailableTrips = new Map(trips.map(trip => [Number(trip.id), trip]));
-                if (trips.length > 0) {
-                    routeSelect.innerHTML = '<option value="">اختر خط السير</option>';
-                    const uniqueRoutes = new Map();
-                    trips.forEach(trip => {
-                        const routeId = trip.route_id || trip.route?.id;
-                        if (routeId && !uniqueRoutes.has(Number(routeId))) uniqueRoutes.set(Number(routeId), trip);
-                    });
-                    uniqueRoutes.forEach((trip, routeId) => {
-                        const route = trip.route || {};
-                        const label = route.route_number ? `${route.route_number} - ${route.name}` : (route.name || `خط #${routeId}`);
-                        routeSelect.innerHTML += `<option value="${routeId}" data-trip-id="${Number(trip.id)}">${label}</option>`;
-                    });
-                } else {
-                    routeSelect.innerHTML = '<option value="">لا توجد رحلات متاحة حالياً</option>';
-                }
-            } catch (routeErr) {
-                routeSelect.innerHTML = '<option value="">تعذر تحميل الرحلات المتاحة</option>';
-            }
-
-            if (tripContext) tripContext.classList.add('hidden');
-
-            // تعيين تاريخ البدء الافتراضي ليوم غد
-            const startDate = document.getElementById('buy-sub-start-date');
-            if (startDate) {
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                startDate.value = tomorrow.toISOString().slice(0, 10);
-            }
-
-            // إعادة تعيين نقاط التجمع
-            const outboundSelect = document.getElementById('buy-sub-outbound-pickup');
-            const returnSelect = document.getElementById('buy-sub-return-pickup');
-            [outboundSelect, returnSelect].forEach(s => {
-                if (s) { s.innerHTML = '<option value="">اختر خط السير أولاً</option>'; s.disabled = true; }
+        const routesRes = await window.routesApi.list({ page_size: 100, is_active: true });
+        const routes = Array.isArray(routesRes) ? routesRes : (routesRes?.items || []);
+        if (routes.length > 0) {
+            routeSelect.innerHTML = '<option value="">اختر خط السير</option>';
+            routes.forEach(route => {
+                buySubRoutesCache.set(Number(route.id), route);
+                const label = route.route_number ? `${route.route_number} - ${route.name}` : (route.name || `خط #${route.id}`);
+                routeSelect.innerHTML += `<option value="${route.id}">${label}</option>`;
             });
+            routeSelect.disabled = false;
+        } else {
+            routeSelect.innerHTML = '<option value="">لا توجد خطوط نشطة حاليًا</option>';
         }
+    } catch (routeErr) {
+        routeSelect.innerHTML = '<option value="">تعذر تحميل خطوط السير</option>';
+    }
 
-        // تحميل الباقات المتاحة
-        planSelect.innerHTML = '<option value="">اختر باقة الاشتراك</option>';
+    // تحميل الباقات المتاحة
+    try {
+        planSelect.innerHTML = '<option value="">⏳ جاري تحميل الباقات...</option>';
         const plansRes = await window.subscriptionPlansApi.listAvailable();
-        const plans = Array.isArray(plansRes) ? plansRes : (plansRes?.items || plansRes?.data || []);
+        const plans = Array.isArray(plansRes) ? plansRes : (plansRes?.items || []);
+        planSelect.innerHTML = '<option value="">اختر باقة الاشتراك</option>';
         plans.forEach(p => {
             planSelect.innerHTML += `<option value="${p.id}" ${Number(p.id) === Number(preselectedPlanId) ? 'selected' : ''}>${p.name} (${p.price} EGP / ${p.duration_days} يوم)</option>`;
         });
         if (!plans.length) {
             planSelect.innerHTML += '<option value="" disabled>لا توجد باقات نشطة حاليًا</option>';
         }
-
-        modal.classList.remove('hidden');
-    } catch (e) {
-        showToast('تعذر تحميل بيانات الباقات وخطوط السير', 'error');
+    } catch (planErr) {
+        planSelect.innerHTML = '<option value="">تعذر تحميل الباقات</option>';
+        showToast('تعذر تحميل باقات الاشتراك', 'error');
     }
 }
 
 async function onBuySubRouteChange() {
-    if (selectedStudentTrip?.route) {
-        // المسار القديم (رحلة محددة)
-        populateBuySubscriptionPickupPoints(selectedStudentTrip.route);
-    } else {
-        // يختار الطالب مسارًا مرتبطًا برحلة متاحة، دون استدعاء مسارات الإدارة المحظورة.
-        const routeSelect = document.getElementById('buy-sub-route-select');
-        const selectedOption = routeSelect?.options[routeSelect.selectedIndex];
-        if (!selectedOption || !selectedOption.value) {
-            const outboundSelect = document.getElementById('buy-sub-outbound-pickup');
-            const returnSelect = document.getElementById('buy-sub-return-pickup');
-            [outboundSelect, returnSelect].forEach(s => {
-                if (s) { s.innerHTML = '<option value="">اختر خط السير أولاً</option>'; s.disabled = true; }
-            });
-            return;
-        }
+    const routeSelect = document.getElementById('buy-sub-route-select');
+    const outboundSelect = document.getElementById('buy-sub-outbound-pickup');
+    const returnSelect = document.getElementById('buy-sub-return-pickup');
+    const routeId = Number(routeSelect?.value);
 
-        selectedStudentTrip = studentAvailableTrips.get(Number(selectedOption.dataset.tripId)) || null;
-        populateBuySubscriptionPickupPoints(selectedStudentTrip?.pickup_points);
+    // أي تغيير للخط يُبطل حالة الرحلة السابقة (تفادي البيانات القديمة)
+    selectedStudentTrip = null;
+
+    if (!routeId) {
+        renderRouteItinerary(null);
+        [outboundSelect, returnSelect].forEach(s => {
+            if (s) { s.innerHTML = '<option value="">اختر خط السير أولاً</option>'; s.disabled = true; s.dataset.validPickupPoints = 'false'; }
+        });
+        return;
+    }
+
+    // عرض خط السير (Itinerary) من بيانات الخط الحقيقية
+    renderRouteItinerary(buySubRoutesCache.get(routeId) || null);
+    try {
+        const fullRoute = await window.routesApi.getById(routeId);
+        if (fullRoute) {
+            buySubRoutesCache.set(routeId, fullRoute);
+            renderRouteItinerary(fullRoute);
+        }
+    } catch (routeDetailErr) {
+        // نكتفي بالبيانات المخزّنة من قائمة الخطوط
+    }
+
+    // نقاط التجمع مرتبطة برحلة على هذا الخط
+    [outboundSelect, returnSelect].forEach(s => {
+        if (s) { s.innerHTML = '<option value="">⏳ جاري تحميل نقاط التجمع...</option>'; s.disabled = true; s.dataset.validPickupPoints = 'false'; }
+    });
+
+    try {
+        const tripsRes = await window.reservationsApi.listAvailableTrips({ route_id: routeId, page_size: 100 });
+        const trips = Array.isArray(tripsRes) ? tripsRes : (tripsRes?.items || []);
+        selectedStudentTrip = trips[0] || null;
+        const pickupPoints = collectPickupPointsFromTrips(trips);
+        populateBuySubscriptionPickupPoints(pickupPoints, trips.length);
+    } catch (e) {
+        populateBuySubscriptionPickupPoints([], 0, true);
     }
 }
 
@@ -1046,6 +1129,7 @@ function toggleReturnPickupSelector() {
 async function handleBuySubscriptionSubmit(e) {
     e.preventDefault();
 
+    const submitBtn = e.submitter || document.querySelector('#buy-subscription-modal button[type="submit"]');
     const routeId = parseInt(document.getElementById('buy-sub-route-select').value);
     const planId = parseInt(document.getElementById('buy-sub-plan-select').value);
     const outboundPickup = parseInt(document.getElementById('buy-sub-outbound-pickup').value);
@@ -1054,12 +1138,29 @@ async function handleBuySubscriptionSubmit(e) {
     const returnPickup = returnMode === 'DIFFERENT' && returnPickupVal ? parseInt(returnPickupVal) : null;
     const payMethod = document.getElementById('buy-sub-pay-method').value;
     const startDate = document.getElementById('buy-sub-start-date').value || null;
-    const transRef = document.getElementById('buy-sub-ref').value || null;
+    const transRef = (document.getElementById('buy-sub-ref').value || '').trim() || null;
+
+    if (!Number.isInteger(routeId) || routeId <= 0) { showToast('يرجى اختيار خط السير.', 'error'); return; }
+    if (!Number.isInteger(planId) || planId <= 0) { showToast('يرجى اختيار باقة الاشتراك.', 'error'); return; }
 
     const outboundSelect = document.getElementById('buy-sub-outbound-pickup');
-    if (outboundSelect?.dataset.validPickupPoints !== 'true') {
-        showToast('لا توجد نقطة تجمع صحيحة لهذه الرحلة. يجب أن تضيف الإدارة نقاط التجمع إلى بيانات الرحلة أولاً.', 'error');
+    if (outboundSelect?.dataset.validPickupPoints !== 'true' || !Number.isInteger(outboundPickup) || outboundPickup <= 0) {
+        showToast('لا توجد نقطة تجمع صحيحة لهذا الخط. يجب أن تعيّن الإدارة نقاط التجمع لرحلات هذا الخط أولاً.', 'error');
         return;
+    }
+    if (returnMode === 'DIFFERENT' && (!Number.isInteger(returnPickup) || returnPickup <= 0)) {
+        showToast('يرجى اختيار نقطة تجمع العودة، أو اختيار "نفس نقطة تجمع الذهاب".', 'error');
+        return;
+    }
+    if ((payMethod === 'VODAFONE_CASH' || payMethod === 'INSTAPAY') && !transRef) {
+        showToast('الدفع الرقمي يتطلب رقم مرجع التحويل. إن لم يتوفر الآن اختر الدفع نقدًا.', 'error');
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.dataset.origText = submitBtn.innerText;
+        submitBtn.innerText = '⏳ جاري تنفيذ الاشتراك...';
     }
 
     try {
@@ -1075,11 +1176,19 @@ async function handleBuySubscriptionSubmit(e) {
         };
 
         const res = await window.subscriptionsApi.create(payload);
-        showToast('تم إنشاء وشراء الاشتراك بنجاح!', 'success');
+        const isPending = !res || res.status === 'PENDING';
+        showToast(isPending
+            ? 'تم إنشاء الاشتراك! الحالة: بانتظار تأكيد الدفع من الإدارة قبل ظهور كود QR.'
+            : 'تم إنشاء الاشتراك بنجاح!', 'success');
         closeModal('buy-subscription-modal');
         loadStudentDashboard();
     } catch (err) {
         console.error('Buy subscription error:', err);
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = submitBtn.dataset.origText || 'تأكيد وشراء الاشتراك';
+        }
     }
 }
 
@@ -1659,7 +1768,11 @@ async function confirmCeoUser(userId) {
         if (user && user.phone_number) {
             removeRejectedPhone(user.phone_number);
         }
-        await window.usersApi.confirmUser(userId);
+        if (isUserPending(user)) {
+            await window.usersApi.approve(userId);
+        } else {
+            await window.usersApi.updateStatus(userId, true);
+        }
         showToast('تم اعتماد وتأكيد حساب الطالب بنجاح! يمكنه الآن تسجيل الدخول وحجز الرحلات.', 'success');
         loadCeoUsers();
         loadCeoDashboardData();
@@ -1674,8 +1787,13 @@ async function rejectCeoUser(userId) {
         if (user && user.phone_number) {
             addRejectedPhone(user.phone_number);
         }
-        await window.usersApi.rejectUser(userId);
-        showToast('تم تعطيل / رفض الحساب بنجاح. حالة الحساب الآن Inactive (معطل).', 'info');
+        if (isUserPending(user)) {
+            await window.usersApi.reject(userId);
+            showToast('تم رفض طلب التسجيل بنجاح.', 'info');
+        } else {
+            await window.usersApi.updateStatus(userId, false);
+            showToast('تم تعطيل الحساب بنجاح.', 'info');
+        }
         loadCeoUsers();
         loadCeoDashboardData();
     } catch (e) {
@@ -2549,6 +2667,9 @@ async function loadCeoTrips() {
                             </span>
                         </td>
                         <td class="p-4 text-center">
+                            <button onclick="openManagePickupPointsModal(${t.id})" class="text-brand-primary hover:underline font-bold text-xs bg-transparent border-0 cursor-pointer ml-3">
+                                نقاط التجمع (${Array.isArray(t.pickup_points) ? t.pickup_points.length : 0})
+                            </button>
                             <button onclick="deleteScheduledTrip(${t.id})" class="text-rose-500 hover:underline font-bold text-xs bg-transparent border-0 cursor-pointer">
                                 حذف
                             </button>
@@ -2635,6 +2756,99 @@ async function deleteScheduledTrip(tripId) {
         loadCeoTrips();
     } catch (err) {
         console.error('Delete trip error:', err);
+    }
+}
+
+// 7b. CEO: Trip Pickup (Gathering) Points — required for students to subscribe
+async function openManagePickupPointsModal(tripId) {
+    currentPickupTripId = Number(tripId);
+    const modal = document.getElementById('manage-pickup-points-modal');
+    if (!modal) return;
+
+    const ctx = document.getElementById('pickup-trip-context');
+    if (ctx) ctx.innerText = `رقم الرحلة: #${currentPickupTripId}`;
+
+    const nameInput = document.getElementById('pickup-name-input');
+    const addressInput = document.getElementById('pickup-address-input');
+    if (nameInput) nameInput.value = '';
+    if (addressInput) addressInput.value = '';
+
+    modal.classList.remove('hidden');
+    await loadTripPickupPoints();
+}
+
+async function loadTripPickupPoints() {
+    const tbody = document.getElementById('pickup-points-tbody');
+    if (!tbody || !currentPickupTripId) return;
+    tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
+
+    try {
+        const res = await window.tripsApi.listPickupPoints(currentPickupTripId);
+        const items = Array.isArray(res) ? res : (res?.items || []);
+
+        if (items.length > 0) {
+            tbody.innerHTML = '';
+            items.forEach(p => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
+                        <td class="p-3 font-bold text-slate-800 dark:text-white">${p.name}</td>
+                        <td class="p-3 text-slate-500 dark:text-slate-400">${p.address || '—'}</td>
+                        <td class="p-3 font-mono font-bold">${p.sequence}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="deletePickupPoint(${p.id})" class="text-rose-500 hover:underline font-bold text-xs bg-transparent border-0 cursor-pointer">حذف</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 font-bold">لا توجد نقاط تجمع لهذه الرحلة بعد</td></tr>';
+        }
+
+        const seqInput = document.getElementById('pickup-sequence-input');
+        if (seqInput) {
+            const maxSeq = items.reduce((max, p) => Math.max(max, Number(p.sequence) || 0), 0);
+            seqInput.value = items.length ? maxSeq + 1 : 1;
+        }
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-rose-500 font-bold">تعذر تحميل نقاط التجمع</td></tr>';
+    }
+}
+
+async function handleAddPickupPoint(e) {
+    e.preventDefault();
+    if (!currentPickupTripId) return;
+
+    const name = document.getElementById('pickup-name-input').value.trim();
+    const address = document.getElementById('pickup-address-input').value.trim();
+    const sequence = parseInt(document.getElementById('pickup-sequence-input').value);
+
+    if (!name) { showToast('يرجى إدخال اسم نقطة التجمع.', 'error'); return; }
+    if (!Number.isInteger(sequence) || sequence < 1) { showToast('الترتيب (Sequence) يجب أن يكون رقماً صحيحاً ≥ 1.', 'error'); return; }
+
+    try {
+        const payload = { name, sequence };
+        if (address) payload.address = address;
+        await window.tripsApi.addPickupPoint(currentPickupTripId, payload);
+        showToast('تمت إضافة نقطة التجمع بنجاح.', 'success');
+        document.getElementById('pickup-name-input').value = '';
+        document.getElementById('pickup-address-input').value = '';
+        await loadTripPickupPoints();
+        loadCeoTrips();
+    } catch (err) {
+        console.error('Add pickup point error:', err);
+    }
+}
+
+async function deletePickupPoint(pointId) {
+    if (!currentPickupTripId) return;
+    if (!confirm('هل أنت متأكد من حذف نقطة التجمع هذه؟')) return;
+    try {
+        await window.tripsApi.deletePickupPoint(currentPickupTripId, pointId);
+        showToast('تم حذف نقطة التجمع.', 'success');
+        await loadTripPickupPoints();
+        loadCeoTrips();
+    } catch (err) {
+        console.error('Delete pickup point error:', err);
     }
 }
 
