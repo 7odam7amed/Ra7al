@@ -490,7 +490,9 @@ const stationsApi = {
     }
 };
 
-// 6. ROUTES & STOPS
+// 6. ROUTES & PICKUP POINTS (ROUTES.md: a route is a logical container of
+// pickup points — no origin/destination/distance/duration/supervisor, and
+// RouteStop no longer exists).
 const routesApi = {
     async list(params = {}) {
         return ApiClient.request('/routes', { params });
@@ -516,47 +518,37 @@ const routesApi = {
             body: { is_active: isActive }
         });
     },
-    async assignSupervisor(routeId, supervisorId) {
-        return ApiClient.request(`/routes/${routeId}/supervisor`, {
-            method: 'PATCH',
-            body: { supervisor_id: supervisorId }
-        });
-    },
     async delete(routeId) {
         return ApiClient.request(`/routes/${routeId}`, {
             method: 'DELETE'
         });
     },
-    // Intermediate Stops
-    async getStops(routeId) {
-        return ApiClient.request(`/routes/${routeId}/stops`);
+    // Pickup points live under a route (exactly one route per point,
+    // no latitude/longitude — PickupPointResponse).
+    async listPickupPoints(routeId) {
+        return ApiClient.request(`/routes/${routeId}/pickup-points`);
     },
-    async addStop(routeId, data) {
-        return ApiClient.request(`/routes/${routeId}/stops`, {
+    async addPickupPoint(routeId, data) {
+        return ApiClient.request(`/routes/${routeId}/pickup-points`, {
             method: 'POST',
             body: data
         });
     },
-    async reorderStops(routeId, stopsArray) {
-        return ApiClient.request(`/routes/${routeId}/stops/reorder`, {
+    async updatePickupPoint(routeId, pointId, data) {
+        return ApiClient.request(`/routes/${routeId}/pickup-points/${pointId}`, {
             method: 'PATCH',
-            body: { stops: stopsArray }
+            body: data
         });
     },
-    async updateStop(routeId, routeStopId, stopOrder) {
-        return ApiClient.request(`/routes/${routeId}/stops/${routeStopId}`, {
-            method: 'PATCH',
-            body: { stop_order: stopOrder }
-        });
-    },
-    async removeStop(routeId, routeStopId) {
-        return ApiClient.request(`/routes/${routeId}/stops/${routeStopId}`, {
+    async deletePickupPoint(routeId, pointId) {
+        return ApiClient.request(`/routes/${routeId}/pickup-points/${pointId}`, {
             method: 'DELETE'
         });
     }
 };
 
-// 7. TRIPS & PICKUP POINTS
+// 7. TRIPS & TRIP STOPS (TRIPS.md: one direction per trip, no fare; trip
+// times are DERIVED from the ordered stops).
 const tripsApi = {
     async list(params = {}) {
         return ApiClient.request('/trips', { params });
@@ -587,39 +579,34 @@ const tripsApi = {
             method: 'DELETE'
         });
     },
-    // Pickup Points on Trip
-    async listPickupPoints(tripId) {
-        return ApiClient.request(`/trips/${tripId}/pickup-points`);
+    // Route's registered pickup points (step 2 of trip creation — CEO).
+    async getRoutePoints(routeId) {
+        return ApiClient.request(`/trips/route-points/${routeId}`);
     },
-    async addPickupPoint(tripId, data) {
-        return ApiClient.request(`/trips/${tripId}/pickup-points`, {
-            method: 'POST',
-            body: data
-        });
+    // Ordered stops of a trip (TripStopResponse[]).
+    async listStops(tripId) {
+        return ApiClient.request(`/trips/${tripId}/stops`);
     },
-    async updatePickupPoint(tripId, pointId, data) {
-        return ApiClient.request(`/trips/${tripId}/pickup-points/${pointId}`, {
+    // Replace the trip's ordered stop sequence: { stops: [...] }.
+    async updateStops(tripId, stopsArray) {
+        return ApiClient.request(`/trips/${tripId}/stops`, {
             method: 'PATCH',
-            body: data
-        });
-    },
-    async deletePickupPoint(tripId, pointId) {
-        return ApiClient.request(`/trips/${tripId}/pickup-points/${pointId}`, {
-            method: 'DELETE'
+            body: { stops: stopsArray }
         });
     }
 };
 
-// 8. RESERVATIONS / DAILY TRANSPORTATION SELECTION
+// 8. RESERVATIONS / DAILY TRANSPORTATION (RESERVATIONS.md: one directed
+// booking per row — one student + one trip (one direction) + one service
+// date; max one OUTBOUND + one RETURN per student per service date).
 const reservationsApi = {
     /**
-     * POST /reservations — create a daily transportation selection.
-     * Body: { trip_id, service_date?, outbound_pickup_point_id,
-     *         return_pickup_point_id, direction_mode }
-     * service_date is OPTIONAL: defaults to TOMORROW server-side when
-     * omitted; must be today or later, inside the ACTIVE subscription's
-     * validity window, and within the weekly days_per_week_snapshot limit
-     * (enforced by the backend — RESERVATIONS.md).
+     * POST /reservations — book a trip seat.
+     * Body: { trip_id, selected_pickup_point_id, service_date? }
+     * The pickup point is the boarding point for OUTBOUND trips and the
+     * drop-off point for RETURN trips; it must be one of the trip's stops.
+     * service_date is OPTIONAL: defaults to TOMORROW server-side; direction
+     * is derived from the trip (client cannot choose it).
      */
     async book(data) {
         return ApiClient.request('/reservations', {
@@ -628,25 +615,32 @@ const reservationsApi = {
         });
     },
     /**
-     * PUT /reservations/my/tomorrow — replace tomorrow's existing selection.
+     * GET /reservations/upcoming-trips — ALL upcoming SCHEDULED trips for the
+     * student (StudentTripViewResponse[] with booking_state AVAILABLE/BOOKED/FULL).
      */
-    async updateMyTomorrow(data) {
-        return ApiClient.request('/reservations/my/tomorrow', {
+    async listUpcomingTrips(params = {}) {
+        return ApiClient.request('/reservations/upcoming-trips', { params });
+    },
+    /**
+     * GET /reservations/my/selection — the student's bookings for a date
+     * (defaults to TOMORROW; up to two: one OUTBOUND + one RETURN).
+     */
+    async getMySelection(params = {}) {
+        return ApiClient.request('/reservations/my/selection', { params });
+    },
+    /**
+     * PUT /reservations/my/selection — replace the student's existing booking
+     * in the SAME direction as the new trip for the resolved service date
+     * (same body as POST). Response: ReservationResponse.
+     */
+    async updateMySelection(data) {
+        return ApiClient.request('/reservations/my/selection', {
             method: 'PUT',
             body: data
         });
     },
-    /**
-     * GET /reservations/my/tomorrow — retrieve tomorrow's selection, if any.
-     */
-    async getMyTomorrow() {
-        return ApiClient.request('/reservations/my/tomorrow');
-    },
     async listAdmin(params = {}) {
         return ApiClient.request('/reservations', { params });
-    },
-    async listAvailableTrips(params = {}) {
-        return ApiClient.request('/reservations/available-trips', { params });
     },
     async listMy(params = {}) {
         return ApiClient.request('/reservations/my', { params });
@@ -661,14 +655,11 @@ const reservationsApi = {
     }
 };
 
-// 9. PAYMENTS
+// 9. PAYMENTS (PAYMENTS.md: payments are created automatically with each
+// subscription request; POST /payments is retired — always 422. Digital
+// methods require BOTH a transaction reference AND a receipt image before
+// verification).
 const paymentsApi = {
-    async create(data) {
-        return ApiClient.request('/payments', {
-            method: 'POST',
-            body: data
-        });
-    },
     async listAdmin(params = {}) {
         return ApiClient.request('/payments', { params });
     },
@@ -677,6 +668,27 @@ const paymentsApi = {
     },
     async getById(paymentId) {
         return ApiClient.request(`/payments/${paymentId}`);
+    },
+    /**
+     * POST /payments/{payment_id}/receipt — owner STUDENT only, multipart
+     * field "image" (JPEG/PNG/WEBP ≤ 5 MB). Advances the digital payment
+     * PENDING → SUBMITTED. Receipts live in a PRIVATE bucket; viewing goes
+     * through GET /payments/{id}/receipt (authorized stream).
+     */
+    async uploadReceipt(paymentId, file) {
+        const formData = new FormData();
+        formData.append('image', file);
+        return ApiClient.request(`/payments/${paymentId}/receipt`, {
+            method: 'POST',
+            body: formData
+        });
+    },
+    /**
+     * GET /payments/{payment_id}/receipt — streams the receipt image bytes
+     * (owner student / CEO / SUPERVISOR). Never a public URL.
+     */
+    async getReceipt(paymentId) {
+        return ApiClient.requestBlob(`/payments/${paymentId}/receipt`);
     },
     async submitProof(paymentId, data) {
         return ApiClient.request(`/payments/${paymentId}/submit`, {

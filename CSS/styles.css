@@ -105,3 +105,171 @@ th, td {
     transform: translateY(-4px);
 }
 
+/* ============================================================
+   CEO DASHBOARD LAYOUT — DESKTOP SIDEBAR + MOBILE DRAWER
+   Desktop (≥ 1024px): static flex row, sidebar beside content.
+   Mobile/tablet (< 1024px): sidebar becomes a fixed overlay drawer
+   with a backdrop; content takes the full width and never shifts.
+   ============================================================ */
+.ceo-layout {
+    display: flex;
+    align-items: stretch;
+    position: relative;
+}
+
+.ceo-mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba(8, 27, 51, 0.85);
+    border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.ceo-sidebar-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.9rem;
+    border-radius: 0.75rem;
+    background: linear-gradient(135deg, #0B5DAA 0%, #6AB9FF 100%);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 800;
+    border: 0;
+    cursor: pointer;
+}
+
+.ceo-mobile-bar-title {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #6AB9FF;
+}
+
+.ceo-sidebar-close-btn {
+    display: none;
+    width: 2.25rem;
+    height: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+    border: 0;
+    cursor: pointer;
+}
+
+.ceo-sidebar-close-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+}
+
+.ceo-sidebar {
+    width: 16rem;
+    background: #000;
+    border-left: 1px solid rgba(226, 232, 240, 0.2);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+:root.dark .ceo-sidebar,
+html.dark .ceo-sidebar {
+    background: #0f172a;
+}
+
+.ceo-sidebar-backdrop {
+    display: none;
+}
+
+.ceo-content {
+    flex: 1 1 auto;
+    min-width: 0; /* allow content to shrink inside flex row (no horizontal overflow) */
+    padding: 2rem;
+}
+
+/* Mobile/tablet: overlay drawer */
+@media (max-width: 1023.98px) {
+    .ceo-mobile-bar {
+        /* keep below the sticky page header (z-40) but above page content */
+        position: sticky;
+        top: 0;
+    }
+
+    .ceo-layout {
+        flex-direction: column;
+    }
+
+    .ceo-sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        inset-inline-end: 0; /* RTL: drawer slides from the right edge */
+        right: 0;
+        left: auto;
+        width: min(18rem, 85vw);
+        max-width: 85vw;
+        z-index: 45; /* above content & mobile bar (20/30), below modals (50) */
+        height: 100vh;
+        height: 100dvh; /* respect mobile viewport (URL bar) height */
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        transform: translateX(100%); /* RTL-aware off-canvas position */
+        box-shadow: -12px 0 32px rgba(0, 0, 0, 0.35);
+        border-left: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    /* Slide-in animation: the drawer opens to the LEFT in RTL layout */
+    .ceo-sidebar.ceo-sidebar-open {
+        transform: translateX(0);
+    }
+
+    .ceo-sidebar-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        backdrop-filter: blur(2px);
+        z-index: 44;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+    }
+
+    .ceo-sidebar-backdrop.ceo-backdrop-visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .ceo-sidebar-close-btn {
+        display: inline-flex;
+    }
+
+    .ceo-content {
+        padding: 1rem;
+    }
+}
+
+/* Desktop: hide the mobile-only controls and static layout */
+@media (min-width: 1024px) {
+    .ceo-mobile-bar,
+    .ceo-sidebar-close-btn,
+    .ceo-sidebar-backdrop {
+        display: none !important;
+    }
+}
+
+/* Emergency guard: body must never scroll horizontally anywhere */
+html, body {
+    overflow-x: hidden;
+    max-width: 100%;
+}
+
+/* Page scroll-lock while the CEO mobile drawer is open */
+body.ceo-drawer-open {
+    overflow: hidden;
+}
+

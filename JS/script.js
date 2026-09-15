@@ -26,9 +26,9 @@ const PLAN_TYPE_LABELS = {
     TERM: 'فصل دراسي'
 };
 
-// Plan duration bounds (SUBSCRIPTIONS.md: 1–730 days for ALL plan types;
-// DAILY is flexible too — duration_days = validity window, days_per_week =
-// weekly transportation usage-day cap).
+// Plan duration bounds (SUBSCRIPTIONS.md: 1–730 days for WEEKLY / MONTHLY /
+// TERM — CEO-defined). DAILY is FIXED: duration_days = exactly 1 (schema +
+// DB constraint). days_per_week = weekly transportation usage-day cap.
 const MAX_PLAN_DURATION_DAYS = 730;
 // Weekly usage-day allowance bounds (days_per_week: 1–7 distinct usage days)
 const MAX_PLAN_DAYS_PER_WEEK = 7;
@@ -115,6 +115,11 @@ function initApp() {
 
     // 4. Immediately initialize observers and reveal viewport elements
     initIntersectionObservers();
+
+    // 4b. Escape key closes the CEO mobile drawer (professional UX).
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeCeoSidebar();
+    });
 
     // 5. Asynchronously load background data without blocking UI rendering
     loadInitialPublicData();
@@ -758,11 +763,15 @@ async function loadStudentAvailableTrips() {
     const status = document.getElementById('student-available-trips-status');
     if (!tbody) return;
     if (status) status.classList.add('hidden');
-    setTomorrowLabels();
-    tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري تحميل رحلات الغد...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري تحميل الرحلات القادمة...</td></tr>';
 
     try {
-        const res = await window.reservationsApi.listAvailableTrips({ page_size: 100 });
+        // GET /reservations/upcoming-trips — ALL upcoming SCHEDULED trips
+        // (not only tomorrow), with per-student booking_state.
+        const directionFilter = document.getElementById('student-direction-filter')?.value || '';
+        const params = { page_size: 100 };
+        if (directionFilter) params.direction = directionFilter;
+        const res = await window.reservationsApi.listUpcomingTrips(params);
         const trips = Array.isArray(res) ? res : (res?.items || []);
         studentTomorrowTripsCache = trips;
 
@@ -770,20 +779,35 @@ async function loadStudentAvailableTrips() {
             tbody.innerHTML = '';
             trips.forEach(t => {
                 const dep = t.departure_time ? new Date(t.departure_time).toLocaleString('ar-EG', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : '--';
-                const svcDate = t.departure_time ? new Date(t.departure_time).toLocaleDateString('ar-EG', { weekday: 'long', month: 'long', day: 'numeric' }) : '--';
+                const isOutbound = t.direction === 'OUTBOUND';
                 const routeName = t.route?.name || `خط #${t.route_id}`;
+                // Destination semantics (TRIPS.md §4): OUTBOUND → the student's
+                // registered university; RETURN → the selected drop-off point
+                // (null until booked). Never a fixed trip destination.
+                const destination = t.destination || (isOutbound ? (currentUser?.university_name || 'جامعتك المسجلة') : 'تُحدد بعد الحجز');
+                const state = t.booking_state || 'AVAILABLE';
                 const available = t.available_seats;
-                const seatsBadge = available > 0
-                    ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-500">متاح ${available}</span>`
-                    : `<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-500">ممتلئ</span>`;
+                const seatsBadge = state === 'BOOKED'
+                    ? '<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-500">تم الحجز ✓</span>'
+                    : state === 'FULL'
+                        ? '<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-500">تم الملئ</span>'
+                        : (available > 0
+                            ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-500">متاح ${available}</span>`
+                            : '<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-500">ممتلئ</span>');
                 const points = Array.isArray(t.pickup_points) ? t.pickup_points : [];
-                const bookBtn = points.length
-                    ? `<button onclick="openSelectTransportationModal(${Number(t.id)})" class="btn-gradient text-white text-[11px] font-black px-4 py-1.5 rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer shadow-sm">اختر الرحلة</button>`
-                    : `<span class="text-[10px] text-slate-400">لا توجد نقاط تجمع معرفة</span>`;
+                const canBook = state !== 'BOOKED' && state !== 'FULL' && points.length > 0;
+                const bookBtn = canBook
+                    ? `<button onclick="openSelectTransportationModal(${Number(t.trip_id)})" class="btn-gradient text-white text-[11px] font-black px-4 py-1.5 rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer shadow-sm">اختر الرحلة</button>`
+                    : `<span class="text-[10px] text-slate-400">${state === 'BOOKED' ? 'محجوزة' : 'غير متاحة'}</span>`;
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
                         <td class="p-4 font-bold text-slate-800 dark:text-white">${routeName}</td>
-                        <td class="p-4 font-mono text-slate-500">${svcDate}</td>
+                        <td class="p-4">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-black ${isOutbound ? 'bg-blue-500/15 text-blue-500' : 'bg-emerald-500/15 text-emerald-500'}">
+                                ${isOutbound ? 'ذهاب' : 'عودة'}
+                            </span>
+                        </td>
+                        <td class="p-4 text-slate-500 dark:text-slate-400">${destination}</td>
                         <td class="p-4 font-mono text-slate-500">${dep}</td>
                         <td class="p-4">${seatsBadge}</td>
                         <td class="p-4 text-center">${bookBtn}</td>
@@ -791,25 +815,28 @@ async function loadStudentAvailableTrips() {
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400 font-bold">لا توجد رحلات متاحة للغد حالياً. يرجى المحاولة لاحقاً.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">لا توجد رحلات قادمة مجدولة حالياً. يرجى المحاولة لاحقاً.</td></tr>';
         }
     } catch (e) {
-        const message = e?.message || 'حدث خطأ أثناء تحميل رحلات الغد.';
-        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل رحلات الغد: ${message}</td></tr>`;
+        const message = e?.message || 'حدث خطأ أثناء تحميل الرحلات القادمة.';
+        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل الرحلات القادمة: ${message}</td></tr>`;
     }
 }
 
-// فتح مودال اختيار المواصلات: نقاط الذهاب/العودة من نقاط الرحلة نفسها فقط.
+// فتح مودال اختيار المواصلات: نقطة واحدة فقط من محطات الرحلة نفسها.
+// OUTBOUND → نقطة الركوب، الوجهة = جامعة الطالب المسجلة.
+// RETURN → نقطة النزول، الانطلاق = جامعة الطالب.
 function openSelectTransportationModal(tripId) {
-    const trip = (studentTomorrowTripsCache || []).find(t => Number(t.id) === Number(tripId));
+    const trip = (studentTomorrowTripsCache || []).find(t => Number(t.trip_id) === Number(tripId));
     if (!trip) {
         showToast('تعذر العثور على بيانات الرحلة. حدّث القائمة وحاول مجدداً.', 'error');
         return;
     }
 
+    const isOutbound = trip.direction === 'OUTBOUND';
     const points = Array.isArray(trip.pickup_points) ? trip.pickup_points : [];
     if (!points.length) {
-        showToast('لا توجد نقاط تجمع معرفة لهذه الرحلة. اطلب من الإدارة تعيينها أولاً.', 'warning');
+        showToast('لا توجد نقاط ركوب معرفة لهذه الرحلة. اطلب من الإدارة تعيينها أولاً.', 'warning');
         return;
     }
 
@@ -817,17 +844,33 @@ function openSelectTransportationModal(tripId) {
         .map(p => `<option value="${Number(p.id)}">${p.name || `نقطة #${p.id}`}</option>`)
         .join('');
 
-    const routeName = trip.route?.name || `رحلة #${trip.id}`;
+    const routeName = trip.route?.name || `رحلة #${trip.trip_id}`;
     const dep = trip.departure_time ? new Date(trip.departure_time).toLocaleString('ar-EG', { weekday: 'long', hour: '2-digit', minute: '2-digit' }) : '--';
+    const dirLabel = isOutbound ? 'ذهاب' : 'عودة';
 
     const modal = document.getElementById('select-transportation-modal');
     if (!modal) return;
-    modal.dataset.tripId = String(Number(trip.id));
-    setElementText('sel-trans-trip-context', `${routeName} • ${dep} • ${getTomorrowLabel()}`);
+    modal.dataset.tripId = String(Number(trip.trip_id));
+    setElementText('sel-trans-title', isOutbound ? 'حجز مواصلات الذهاب' : 'حجز مواصلات العودة');
+    setElementText('sel-trans-trip-context', `${routeName} • ${dirLabel} • ${dep}`);
 
-    // Service-date picker: defaults to TOMORROW, past dates disabled.
-    // The backend remains the authority on eligibility (subscription
-    // coverage + weekly usage limit).
+    // The selected point is the pickup point (OUTBOUND) or the drop-off
+    // point (RETURN) — always one of the trip's stops.
+    setElementText('sel-trans-point-label', isOutbound ? 'الركوب' : 'النزول');
+    const pointSelect = document.getElementById('sel-trans-point');
+    if (pointSelect) pointSelect.innerHTML = optionsHtml;
+
+    // Destination hint per direction (RESERVATIONS.md destination semantics).
+    const destHint = document.getElementById('sel-trans-dest-hint');
+    if (destHint) {
+        destHint.textContent = isOutbound
+            ? `الوجهة: ${currentUser?.university_name || 'جامعتك المسجلة'} — تُحدد من حسابك.`
+            : 'الانطلاق من جامعتك المسجلة والوجهة هي نقطة النزول المختارة.';
+    }
+
+    // Service-date picker: defaults to TOMORROW (server default), past dates disabled.
+    // The backend remains the authority on eligibility (ACTIVE subscription
+    // coverage + one booking per direction per date).
     const dateInput = document.getElementById('sel-trans-service-date');
     if (dateInput) {
         const today = new Date();
@@ -837,24 +880,12 @@ function openSelectTransportationModal(tripId) {
         dateInput.value = tomorrow.toISOString().slice(0, 10);
     }
 
-    const outSel = document.getElementById('sel-trans-outbound');
-    const retSel = document.getElementById('sel-trans-return');
-    if (outSel) outSel.innerHTML = optionsHtml;
-    if (retSel) retSel.innerHTML = optionsHtml;
-
-    const modeSel = document.getElementById('sel-trans-direction-mode');
-    if (modeSel) modeSel.value = 'BOTH';
-    toggleReturnSelectorForMode();
+    // If the student already holds a booking for this trip, offer replacement
+    // via PUT /reservations/my/selection (same direction, same date).
+    const existingInput = document.getElementById('sel-trans-existing-id');
+    if (existingInput) existingInput.value = trip.booking_state === 'BOOKED' ? '1' : '';
 
     modal.classList.remove('hidden');
-}
-
-function toggleReturnSelectorForMode() {
-    const mode = document.getElementById('sel-trans-direction-mode')?.value || 'BOTH';
-    const container = document.getElementById('sel-trans-return-container');
-    if (container) {
-        container.classList.toggle('hidden', mode === 'OUTBOUND_ONLY');
-    }
 }
 
 async function handleSelectTransportationSubmit(e) {
@@ -864,21 +895,19 @@ async function handleSelectTransportationSubmit(e) {
     if (!modal) return;
     const tripId = Number(modal.dataset.tripId);
     const submitBtn = e.submitter || modal.querySelector('button[type="submit"]');
-    const mode = document.getElementById('sel-trans-direction-mode').value;
-    const outVal = document.getElementById('sel-trans-outbound').value;
-    const retVal = document.getElementById('sel-trans-return')?.value;
-    const outboundId = outVal ? Number(outVal) : null;
-    const returnId = retVal ? Number(retVal) : null;
+    const pointVal = document.getElementById('sel-trans-point')?.value;
+    const pointId = pointVal ? Number(pointVal) : null;
     const serviceDate = document.getElementById('sel-trans-service-date')?.value || null;
+    const isReplacement = document.getElementById('sel-trans-existing-id')?.value === '1';
 
-    // متطلبات نقاط الاتجاه (نفس قواعد الخادم — ReservationCreateRequest):
+    // ReservationCreateRequest: trip_id + selected_pickup_point_id (+ optional
+    // service_date). Direction is derived from the trip — the client cannot
+    // choose it. Same-direction duplicates (409) and subscription coverage
+    // (422) are enforced by the backend (source of truth).
     if (!Number.isInteger(tripId) || tripId <= 0) { showToast('رقم الرحلة غير صالح.', 'error'); return; }
     if (!serviceDate) { showToast('يرجى اختيار تاريخ المواصلات.', 'error'); return; }
-    if (mode !== 'RETURN_ONLY' && (!Number.isInteger(outboundId) || outboundId <= 0)) {
-        showToast('يرجى اختيار نقطة تجمع الذهاب.', 'error'); return;
-    }
-    if (mode !== 'OUTBOUND_ONLY' && (!Number.isInteger(returnId) || returnId <= 0)) {
-        showToast('يرجى اختيار نقطة تجمع العودة.', 'error'); return;
+    if (!Number.isInteger(pointId) || pointId <= 0) {
+        showToast('يرجى اختيار نقطة الركوب/النزول.', 'error'); return;
     }
 
     if (submitBtn) {
@@ -888,19 +917,21 @@ async function handleSelectTransportationSubmit(e) {
     }
 
     try {
-        // ReservationCreateRequest: trip + service_date + points + direction.
-        // service_date defaults to tomorrow server-side when omitted; past
-        // dates, dates outside the subscription, and weekly-limit overruns
-        // are rejected by the backend (source of truth).
-        await window.reservationsApi.book({
+        const payload = {
             trip_id: tripId,
-            service_date: serviceDate,
-            outbound_pickup_point_id: outboundId,
-            return_pickup_point_id: returnId,
-            direction_mode: mode
-        });
+            selected_pickup_point_id: pointId,
+            service_date: serviceDate
+        };
+        if (isReplacement) {
+            // PUT /reservations/my/selection replaces the existing booking in
+            // the SAME direction as the new trip for the resolved service date.
+            await window.reservationsApi.updateMySelection(payload);
+        } else {
+            await window.reservationsApi.book(payload);
+        }
         showToast('تم تأكيد حجز المواصلات بنجاح! اعرض كود QR للمشرف يوم الرحلة.', 'success');
         closeModal('select-transportation-modal');
+        loadStudentAvailableTrips();
         loadMyReservations();
     } catch (err) {
         console.error('Create transportation selection error:', err);
@@ -925,24 +956,29 @@ async function loadMyReservations() {
             tbody.innerHTML = '';
             items.forEach(r => {
                 const isConfirmed = r.status === 'CONFIRMED';
-                // تاريخ الخدمة (الغد) هو المعيار — وليس تاريخ إنشاء الحجز.
+                // تاريخ الخدمة هو المعيار — وليس تاريخ إنشاء الحجز.
                 const svcDate = r.service_date ? new Date(`${r.service_date}T00:00:00`).toLocaleDateString('ar-EG') : '--';
-                const isTomorrow = r.service_date === getTomorrowDateISO();
+                const isOutbound = r.direction === 'OUTBOUND';
                 const tripInfo = r.trip?.route?.name ? `${r.trip.route.name}` : `رحلة #${r.trip_id}`;
-                const dirLabel = r.direction_mode === 'OUTBOUND_ONLY' ? 'ذهاب فقط'
-                    : r.direction_mode === 'RETURN_ONLY' ? 'عودة فقط' : 'ذهاب وعودة';
+                const pointName = r.selected_pickup_point?.name || `نقطة #${r.selected_pickup_point_id}`;
+                const dirLabel = isOutbound ? 'ذهاب' : 'عودة';
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
                         <td class="p-4 font-mono font-bold">#${r.id}</td>
-                        <td class="p-4 font-bold text-slate-800 dark:text-white">${tripInfo}<span class="block text-[10px] text-slate-400">${dirLabel}</span></td>
-                        <td class="p-4 font-mono text-slate-400">${svcDate}${isTomorrow ? '<span class="block text-[10px] font-black text-emerald-500">الغد</span>' : ''}</td>
+                        <td class="p-4 font-bold text-slate-800 dark:text-white">${tripInfo}<span class="block text-[10px] text-slate-400">${pointName}</span></td>
+                        <td class="p-4">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-black ${isOutbound ? 'bg-blue-500/15 text-blue-500' : 'bg-emerald-500/15 text-emerald-500'}">
+                                ${dirLabel}
+                            </span>
+                        </td>
+                        <td class="p-4 font-mono text-slate-400">${svcDate}</td>
                         <td class="p-4">
                             <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${isConfirmed ? 'bg-emerald-500/15 text-emerald-500' : 'bg-rose-500/15 text-rose-500'}">
                                 ${isConfirmed ? 'مؤكد' : 'ملغي'}
                             </span>
                         </td>
                         <td class="p-4 text-center">
-                            ${isConfirmed && isTomorrow ? `
+                            ${isConfirmed ? `
                                 <button onclick="cancelMyReservation(${r.id})" class="text-rose-500 hover:text-rose-600 font-black text-xs hover:underline bg-transparent border-0 cursor-pointer">
                                     إلغاء الحجز
                                 </button>
@@ -952,7 +988,7 @@ async function loadMyReservations() {
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400 font-bold">لا توجد حجوزات مسجلة باسمك</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">لا توجد حجوزات مسجلة باسمك</td></tr>';
         }
     } catch (e) {
         tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل قائمة الحجوزات</td></tr>';
@@ -998,6 +1034,12 @@ async function loadMyPayments() {
                     REJECTED: 'مرفوض',
                     CANCELLED: 'ملغي'
                 };
+                const isDigital = p.method === 'VODAFONE_CASH' || p.method === 'INSTAPAY';
+                const receiptCell = isDigital
+                    ? (p.status === 'SUBMITTED' || p.status === 'VERIFIED' || p.status === 'REJECTED'
+                        ? `<button onclick="openReceiptViewer(${p.id})" class="text-brand-primary hover:underline font-bold text-xs bg-transparent border-0 cursor-pointer">عرض الإيصال</button>`
+                        : '<span class="text-[10px] text-amber-500 font-bold">مطلوب رفع الإيصال</span>')
+                    : '<span class="text-slate-400 text-xs">نقدي</span>';
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
@@ -1005,15 +1047,16 @@ async function loadMyPayments() {
                         <td class="p-4 font-mono font-bold text-slate-800 dark:text-white">${p.amount} ${p.currency}</td>
                         <td class="p-4 font-bold">${p.method}</td>
                         <td class="p-4 font-mono text-slate-500 dark:text-slate-400">${p.transaction_reference || 'لا يوجد'}</td>
+                        <td class="p-4 text-center">${receiptCell}</td>
                         <td class="p-4">
                             <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${statusColors[p.status] || 'bg-slate-500/10 text-slate-400'}">
                                 ${statusLabels[p.status] || p.status}
                             </span>
                         </td>
                         <td class="p-4 text-center">
-                            ${p.status === 'PENDING' ? `
+                            ${p.status === 'PENDING' || p.status === 'SUBMITTED' ? `
                                 <button onclick="openSubmitPaymentModal(${p.id})" class="btn-gradient text-white text-[10px] font-bold px-3 py-1.5 rounded-lg border-0 cursor-pointer shadow-sm">
-                                    تقديم إثبات الدفع
+                                    ${p.status === 'PENDING' ? 'رفع الإيصال والمرجع' : 'تحديث الإيصال'}
                                 </button>
                             ` : '<span class="text-slate-400 text-xs">--</span>'}
                         </td>
@@ -1021,10 +1064,10 @@ async function loadMyPayments() {
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">لا توجد عمليات دفع مسجلة</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400 font-bold">لا توجد عمليات دفع مسجلة</td></tr>';
         }
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل سجل المدفوعات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل سجل المدفوعات</td></tr>';
     }
 }
 
@@ -1032,23 +1075,103 @@ function openSubmitPaymentModal(paymentId) {
     document.getElementById('submit-pay-id').value = paymentId;
     document.getElementById('submit-pay-ref').value = '';
     document.getElementById('submit-pay-notes').value = '';
+    const receiptInput = document.getElementById('submit-pay-receipt-file');
+    if (receiptInput) receiptInput.value = '';
     const modal = document.getElementById('submit-payment-modal');
     if (modal) modal.classList.remove('hidden');
+}
+
+// معاينة ملف إيصال الدفع — نفس قواعد التحقق (JPG/PNG/WEBP، ≤ 5MB).
+function handleReceiptFileSelect(input) {
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    // Client-side pre-check mirrors FILE_UPLOADS.md (server remains authoritative)
+    const okExt = /\.(jpe?g|png|webp)$/i.test(file.name);
+    const okMime = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
+    if (!okExt || !okMime) {
+        showToast('صيغة الإيصال غير مدعومة. المسموح: JPG / PNG / WEBP.', 'error');
+        input.value = '';
+        return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+        showToast('حجم الإيصال يتجاوز الحد الأقصى 5 ميجابايت.', 'error');
+        input.value = '';
+    }
 }
 
 async function handleSubmitPaymentProof(e) {
     e.preventDefault();
     const paymentId = document.getElementById('submit-pay-id').value;
-    const ref = document.getElementById('submit-pay-ref').value;
+    const ref = (document.getElementById('submit-pay-ref').value || '').trim();
     const notes = document.getElementById('submit-pay-notes').value;
+    const fileInput = document.getElementById('submit-pay-receipt-file');
+    const receiptFile = (fileInput && fileInput.files && fileInput.files.length > 0) ? fileInput.files[0] : null;
+    const submitBtn = e.submitter || document.querySelector('#submit-payment-modal button[type="submit"]');
+
+    if (!ref) {
+        showToast('يرجى إدخال رقم مرجع التحويل.', 'error');
+        return;
+    }
+    if (!receiptFile) {
+        showToast('الدفع الرقمي يتطلب رفع صورة الإيصال (JPG / PNG / WEBP).', 'error');
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.dataset.origText = submitBtn.innerText;
+        submitBtn.innerText = '⏳ جاري إرسال الإثبات...';
+    }
 
     try {
+        // 1) Submit the transaction reference (+ notes) — PATCH /payments/{id}/submit.
         await window.paymentsApi.submitProof(paymentId, { transaction_reference: ref, notes: notes });
-        showToast('تم تقديم إثبات التحويل بنجاح! سيتم مراجعته من الإدارة.', 'success');
+        // 2) Upload the receipt image — POST /payments/{id}/receipt (multipart,
+        //    field "image"). Advances the digital payment PENDING → SUBMITTED.
+        await window.paymentsApi.uploadReceipt(paymentId, receiptFile);
+        showToast('تم إرسال إثبات التحويل بنجاح! سيتم مراجعته من الإدارة.', 'success');
         closeModal('submit-payment-modal');
         loadMyPayments();
     } catch (e) {
         console.error('Submit payment proof error:', e);
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = submitBtn.dataset.origText || 'إرسال للمراجعة';
+        }
+    }
+}
+
+// عرض صورة إيصال الدفع عبر نقطة النهاية المصرّح بها (blob مؤقت — لا روابط عامة).
+async function openReceiptViewer(paymentId) {
+    const modal = document.getElementById('receipt-view-modal');
+    const img = document.getElementById('receipt-view-img');
+    const fallback = document.getElementById('receipt-view-fallback');
+    if (!modal || !img || !fallback) return;
+
+    setElementText('receipt-view-title', `صورة إيصال الدفع #${paymentId}`);
+    img.classList.add('hidden');
+    img.src = '';
+    fallback.classList.remove('hidden');
+    fallback.innerText = 'جاري تحميل صورة الإيصال...';
+    modal.classList.remove('hidden');
+
+    try {
+        const blob = await window.paymentsApi.getReceipt(paymentId);
+        if (blob instanceof Blob) {
+            const objectUrl = URL.createObjectURL(blob);
+            img.src = objectUrl;
+            img.classList.remove('hidden');
+            fallback.classList.add('hidden');
+            // Revoke after a delay so the <img> has rendered from the blob.
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+        } else {
+            fallback.innerText = 'لا توجد صورة إيصال محفوظة لهذه العملية.';
+        }
+    } catch (err) {
+        fallback.innerText = (err && err.status === 404)
+            ? 'لا توجد صورة إيصال محفوظة لهذه العملية.'
+            : 'تعذر تحميل صورة الإيصال.';
     }
 }
 
@@ -1234,9 +1357,66 @@ async function onSupervisorTripChanged() {
 
     currentSupervisorTripId = parseInt(select.value);
 
+    try {
+        const trip = await window.tripsApi.getById(currentSupervisorTripId);
+        const isOutbound = trip?.direction === 'OUTBOUND';
+        const dirLabel = isOutbound ? 'ذهاب (OUTBOUND)' : 'عودة (RETURN)';
+        const depTime = trip?.departure_time ? new Date(trip.departure_time).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : '--';
+        const routeName = trip?.route?.name || `خط #${trip?.route_id}`;
+
+        // Load pickup points for this trip (GET /trips/{id}/stops — CEO/SUPERVISOR).
+        const stops = await window.tripsApi.listStops(currentSupervisorTripId);
+        const stopList = Array.isArray(stops) ? stops : [];
+        const stopNames = stopList.map(s => s.point_name || `نقطة #${s.pickup_point_id}`).join(' • ');
+
+        const tripMeta = document.getElementById('supervisor-trip-meta');
+        if (tripMeta) {
+            tripMeta.innerHTML = `
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-black ${isOutbound ? 'bg-blue-500/15 text-blue-500' : 'bg-emerald-500/15 text-emerald-500'}">${dirLabel}</span>
+                <span class="text-slate-500 dark:text-slate-400">${routeName}</span>
+                <span class="font-mono text-slate-500">${depTime}</span>
+                <span class="text-slate-400 text-[10px]">${stopNames || 'لا توجد محطات'}</span>
+            `;
+        }
+
+        // Load bus info (GET /buses/{id} — any supervisor) + image
+        // (GET /buses/{id}/image — supervisor assigned to a trip using
+        // this bus). RBAC violations surface as 403 toasts from ApiClient.
+        if (trip?.bus?.id) {
+            setElementText('supervisor-bus-info', `${trip.bus.bus_number || `باص #${trip.bus.id}`} — اللوحة ${trip.bus.license_plate || '--'} — ${trip.bus.model || 'سياحي'} — ${trip.bus.capacity ?? '--'} مقعد`);
+            await attachSupervisorBusImage(trip.bus.id);
+        } else if (trip?.bus_id) {
+            try {
+                const bus = await window.busesApi.getById(trip.bus_id);
+                setElementText('supervisor-bus-info', `${bus.bus_number || `باص #${bus.id}`} — اللوحة ${bus.license_plate || '--'} — ${bus.model || 'سياحي'} — ${bus.capacity ?? '--'} مقعد`);
+                await attachSupervisorBusImage(bus.id);
+            } catch (busErr) {
+                setElementText('supervisor-bus-info', `باص #${trip.bus_id}`);
+            }
+        } else {
+            setElementText('supervisor-bus-info', 'لا توجد حافلة معينة');
+        }
+    } catch (metaErr) {
+        console.warn('Could not load supervisor trip meta:', metaErr);
+    }
+
     // Load Manifest and Records
     loadSupervisorTripStudents();
     loadSupervisorTripRecords();
+}
+
+/**
+ * Display the bus image for the supervisor's assigned trip via the
+ * authorized metadata + blob stream flow (BUSES.md §3).
+ */
+async function attachSupervisorBusImage(busId) {
+    const img = document.getElementById('supervisor-bus-image');
+    const placeholder = document.getElementById('supervisor-bus-image-placeholder');
+    if (!img || !placeholder) return;
+    img.classList.add('hidden');
+    img.src = '';
+    placeholder.classList.remove('hidden');
+    await attachBusImage(busId, img, placeholder);
 }
 
 async function loadSupervisorTripStudents() {
@@ -1416,7 +1596,42 @@ async function handleSupervisorScanSubmit(e) {
 // ============================================================
 // CEO DASHBOARD CONTROLLERS
 // ============================================================
+// ─── CEO mobile sidebar drawer (index.html: #ceo-sidebar) ───
+// Desktop keeps the static aside; below 1024px it becomes an overlay drawer
+// (see styles.css). Closing is possible via the close button, the backdrop,
+// selecting a navigation tab, or the Escape key.
+function isCeoSidebarOpen() {
+    return document.getElementById('ceo-sidebar')?.classList.contains('ceo-sidebar-open') || false;
+}
+
+function openCeoSidebar() {
+    const sidebar = document.getElementById('ceo-sidebar');
+    if (!sidebar) return;
+    sidebar.classList.add('ceo-sidebar-open');
+    document.getElementById('ceo-sidebar-backdrop')?.classList.add('ceo-backdrop-visible');
+    document.getElementById('ceo-sidebar-toggle')?.setAttribute('aria-expanded', 'true');
+    // Lock page scroll while the drawer is open (CSS: body.ceo-drawer-open).
+    document.body.classList.add('ceo-drawer-open');
+}
+
+function closeCeoSidebar() {
+    const sidebar = document.getElementById('ceo-sidebar');
+    if (!sidebar) return;
+    sidebar.classList.remove('ceo-sidebar-open');
+    document.getElementById('ceo-sidebar-backdrop')?.classList.remove('ceo-backdrop-visible');
+    document.getElementById('ceo-sidebar-toggle')?.setAttribute('aria-expanded', 'false');
+    document.body.classList.remove('ceo-drawer-open');
+}
+
+function toggleCeoSidebar() {
+    if (isCeoSidebarOpen()) closeCeoSidebar();
+    else openCeoSidebar();
+}
+
 function switchCeoTab(tabId, btnElement) {
+    // Selecting a navigation item closes the mobile drawer (no-op on desktop).
+    closeCeoSidebar();
+
     const views = document.querySelectorAll('.ceo-subview');
     views.forEach(v => v.classList.add('hidden'));
 
@@ -2440,31 +2655,24 @@ async function deleteStation(stationId) {
     }
 }
 
-// 6. CEO: Routes & Stops Management (Dynamic Waypoints)
-function addRouteWaypointRow(selectedStationId = '') {
-    const container = document.getElementById('route-waypoints-container');
+// 6. CEO: Routes & Pickup Points Management (routes are logical containers
+// of pickup points — no origin/destination/distance/duration/supervisor).
+function addRoutePickupRow() {
+    const container = document.getElementById('route-pickups-container');
     if (!container) return;
 
-    const rowId = 'wp-row-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const rowId = 'rp-row-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
     const row = document.createElement('div');
     row.id = rowId;
     row.className = 'flex items-center gap-2 bg-slate-50 dark:bg-slate-900/80 p-2 rounded-xl border border-slate-200 dark:border-slate-800';
 
-    let optionsHtml = '<option value="">اختر محطة نقطة التوقف</option>';
-    if (cachedStations && cachedStations.length > 0) {
-        cachedStations.forEach(st => {
-            optionsHtml += `<option value="${st.id}" ${st.id == selectedStationId ? 'selected' : ''}>${st.name} (${st.code || 'محطة'})</option>`;
-        });
-    }
-
     row.innerHTML = `
         <span class="text-[11px] font-bold text-brand-primary dark:text-[#6AB9FF] whitespace-nowrap flex items-center gap-1">
-            <i class="fa-solid fa-location-dot"></i> نقطة توقف:
+            <i class="fa-solid fa-location-dot"></i>
         </span>
-        <select class="route-waypoint-station flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
-            ${optionsHtml}
-        </select>
-        <button type="button" onclick="removeRouteWaypointRow('${rowId}')" title="حذف نقطة التوقف" class="bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg px-2.5 py-1.5 text-xs font-bold fast-transition border-0 cursor-pointer">
+        <input type="text" class="route-pickup-name flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none" required placeholder="اسم نقطة الركوب (مثال: الموقف الأمامي)">
+        <input type="number" min="1" class="route-pickup-sequence w-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none" placeholder="الترتيب">
+        <button type="button" onclick="removeRoutePickupRow('${rowId}')" title="حذف نقطة الركوب" class="bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg px-2.5 py-1.5 text-xs font-bold fast-transition border-0 cursor-pointer">
             <i class="fa-solid fa-trash-can"></i>
         </button>
     `;
@@ -2472,7 +2680,7 @@ function addRouteWaypointRow(selectedStationId = '') {
     container.appendChild(row);
 }
 
-function removeRouteWaypointRow(rowId) {
+function removeRoutePickupRow(rowId) {
     const row = document.getElementById(rowId);
     if (row) row.remove();
 }
@@ -2480,7 +2688,7 @@ function removeRouteWaypointRow(rowId) {
 async function loadCeoRoutes() {
     const tbody = document.getElementById('ceo-routes-tbody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
 
     try {
         const res = await window.routesApi.list({ page_size: 50 });
@@ -2490,22 +2698,25 @@ async function loadCeoRoutes() {
         if (items.length > 0) {
             tbody.innerHTML = '';
             items.forEach(r => {
-                const originName = r.origin_station?.name || `محطة #${r.origin_station_id}`;
-                const destName = r.destination_station?.name || `محطة #${r.destination_station_id}`;
+                const points = Array.isArray(r.pickup_points) ? r.pickup_points : [];
+                const pointsLabel = points.length
+                    ? points.map(p => p.name || `نقطة #${p.id}`).join(' • ')
+                    : '<span class="text-[10px] text-amber-500 font-bold">لا توجد نقاط ركوب بعد</span>';
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
-                        <td class="p-4 font-black text-slate-800 dark:text-white">${r.route_number} - ${r.name}</td>
-                        <td class="p-4 font-bold text-slate-600 dark:text-slate-300">${originName} ← ${destName}</td>
-                        <td class="p-4 font-mono font-bold text-slate-500">${r.distance_km || 15} كم / ${r.estimated_duration_minutes || 30} دقيقة</td>
-                        <td class="p-4 font-bold text-slate-600 dark:text-slate-300">${r.supervisor_id ? `مشرف #${r.supervisor_id}` : 'غير معين'}</td>
+                        <td class="p-4 font-black text-slate-800 dark:text-white">${r.name}</td>
+                        <td class="p-4 text-slate-600 dark:text-slate-300">${pointsLabel}</td>
                         <td class="p-4">
                             <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${r.is_active ? 'bg-emerald-500/15 text-emerald-500' : 'bg-rose-500/15 text-rose-500'}">
                                 ${r.is_active ? 'نشط' : 'متوقف'}
                             </span>
                         </td>
                         <td class="p-4 text-center space-x-1 flex items-center justify-center gap-2">
-                            <button onclick="openManageRouteStopsModal(${r.id}, '${r.name}')" class="bg-blue-500/10 text-blue-500 font-bold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-blue-500 hover:text-white border-0 cursor-pointer">
-                                <i class="fa-solid fa-list-ol"></i> التوقفات
+                            <button onclick="openManageRouteStopsModal(${r.id}, '${(r.name || '').replace(/'/g, "\\'")}')" class="bg-blue-500/10 text-blue-500 font-bold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-blue-500 hover:text-white border-0 cursor-pointer">
+                                <i class="fa-solid fa-list-ol"></i> نقاط الركوب
+                            </button>
+                            <button onclick="openEditRouteModal(${r.id}, '${(r.name || '').replace(/'/g, "\\'")}')" class="text-blue-500 hover:underline font-bold text-xs bg-transparent border-0 cursor-pointer">
+                                <i class="fa-solid fa-pen"></i>
                             </button>
                             <button onclick="deleteRoute(${r.id})" class="text-rose-500 hover:underline font-bold text-xs bg-transparent border-0 cursor-pointer">
                                 <i class="fa-solid fa-trash"></i>
@@ -2515,52 +2726,42 @@ async function loadCeoRoutes() {
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">لا توجد خطوط سير مسجلة</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400 font-bold">لا توجد خطوط سير مسجلة</td></tr>';
         }
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل خطوط السير</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل خطوط السير</td></tr>';
     }
 }
 
 async function openAddRouteModal() {
-    // Populate stations and active supervisors
-    const [_, supsRes] = await Promise.all([
-        loadCeoStations(),
-        window.usersApi.list({ role: 'SUPERVISOR', is_active: true, page_size: 100 }).catch(() => null)
-    ]);
-    cachedSupervisors = supsRes?.items || [];
+    const title = document.getElementById('add-route-modal-title');
+    if (title) title.innerText = 'إنشاء خط سير جديد';
+    document.getElementById('route-edit-id').value = '';
+    document.getElementById('route-name-input').value = '';
 
-    const originSelect = document.getElementById('route-origin-select');
-    const destSelect = document.getElementById('route-dest-select');
-    const supSelect = document.getElementById('route-sup-select');
-
-    if (originSelect) originSelect.innerHTML = '<option value="">اختر محطة الانطلاق</option>';
-    if (destSelect) destSelect.innerHTML = '<option value="">اختر محطة الوصول</option>';
-    if (supSelect) {
-        supSelect.innerHTML = '<option value="">بدون مشرف</option>';
-        cachedSupervisors.forEach(s => {
-            supSelect.innerHTML += `<option value="${s.id}">${s.full_name}</option>`;
-        });
+    // Reset pickup rows container and add 1 initial row
+    const pickupsContainer = document.getElementById('route-pickups-container');
+    if (pickupsContainer) {
+        pickupsContainer.innerHTML = '';
+        addRoutePickupRow();
     }
 
-    cachedStations.forEach(st => {
-        if (originSelect) originSelect.innerHTML += `<option value="${st.id}">${st.name}</option>`;
-        if (destSelect) destSelect.innerHTML += `<option value="${st.id}">${st.name}</option>`;
-    });
+    const modal = document.getElementById('add-route-modal');
+    if (modal) modal.classList.remove('hidden');
+}
 
-    document.getElementById('route-edit-id').value = '';
-    document.getElementById('route-number-input').value = '';
-    document.getElementById('route-name-input').value = '';
-    const distInput = document.getElementById('route-dist-input');
-    if (distInput) distInput.value = '15.0';
-    const durInput = document.getElementById('route-dur-input');
-    if (durInput) durInput.value = '30';
+function openEditRouteModal(routeId, routeName) {
+    const title = document.getElementById('add-route-modal-title');
+    if (title) title.innerText = 'تعديل اسم خط السير';
+    document.getElementById('route-edit-id').value = routeId;
+    document.getElementById('route-name-input').value = routeName || '';
 
-    // Reset waypoints container and add 1 initial row
-    const waypointsContainer = document.getElementById('route-waypoints-container');
-    if (waypointsContainer) {
-        waypointsContainer.innerHTML = '';
-        addRouteWaypointRow();
+    // Editing renames the route; pickup points are managed from the dedicated
+    // points modal (POST/PATCH/DELETE per point under the route).
+    const pickupsContainer = document.getElementById('route-pickups-container');
+    if (pickupsContainer) {
+        pickupsContainer.innerHTML = '';
+        addRoutePickupRow();
     }
 
     const modal = document.getElementById('add-route-modal');
@@ -2570,53 +2771,40 @@ async function openAddRouteModal() {
 async function handleSaveRouteSubmit(e) {
     e.preventDefault();
     const id = document.getElementById('route-edit-id').value;
-    const num = document.getElementById('route-number-input').value;
-    const name = document.getElementById('route-name-input').value;
-    const originId = parseInt(document.getElementById('route-origin-select').value);
-    const destId = parseInt(document.getElementById('route-dest-select').value);
-    const distElem = document.getElementById('route-dist-input');
-    const dist = distElem ? parseFloat(distElem.value) : 15.0;
-    const durElem = document.getElementById('route-dur-input');
-    const dur = durElem ? parseInt(durElem.value) : 30;
-    const supElem = document.getElementById('route-sup-select');
-    const supId = (supElem && supElem.value) ? parseInt(supElem.value) : null;
+    const name = document.getElementById('route-name-input').value.trim();
+
+    if (!name) { showToast('يرجى إدخال اسم خط السير.', 'error'); return; }
 
     try {
-        const payload = {
-            route_number: num,
-            name: name,
-            origin_station_id: originId,
-            destination_station_id: destId,
-            distance_km: dist || 15.0,
-            estimated_duration_minutes: dur || 30,
-            supervisor_id: supId
-        };
-
         let routeId = id;
         if (id) {
-            await window.routesApi.update(id, payload);
+            // PATCH /routes/{id} — optional rename only.
+            await window.routesApi.update(id, { name });
             showToast('تم تحديث خط السير بنجاح.', 'success');
         } else {
-            const created = await window.routesApi.create(payload);
+            // POST /routes — body { name } only (ROUTES.md).
+            const created = await window.routesApi.create({ name });
             routeId = created?.id;
             showToast('تم إنشاء خط السير بنجاح.', 'success');
         }
 
-        // Save dynamic waypoints / stop points if present
+        // Create the pickup points entered in the form under the new route.
+        // Each point belongs to exactly one route (no lat/lng, name required,
+        // optional address and sequence).
         if (routeId) {
-            const waypointSelects = document.querySelectorAll('.route-waypoint-station');
+            const nameInputs = document.querySelectorAll('.route-pickup-name');
+            const seqInputs = document.querySelectorAll('.route-pickup-sequence');
             let order = 1;
-            for (const sel of waypointSelects) {
-                const stationId = parseInt(sel.value);
-                if (stationId && !isNaN(stationId)) {
-                    try {
-                        await window.routesApi.addStop(routeId, {
-                            station_id: stationId,
-                            stop_order: order++
-                        });
-                    } catch (stopErr) {
-                        console.warn('Could not add waypoint stop to route:', stopErr);
-                    }
+            for (let i = 0; i < nameInputs.length; i++) {
+                const pointName = (nameInputs[i].value || '').trim();
+                if (!pointName) continue;
+                const seqRaw = seqInputs[i] ? parseInt(seqInputs[i].value, 10) : NaN;
+                const payload = { name: pointName, sequence: Number.isInteger(seqRaw) && seqRaw > 0 ? seqRaw : order };
+                try {
+                    await window.routesApi.addPickupPoint(routeId, payload);
+                    order++;
+                } catch (pointErr) {
+                    console.warn('Could not add pickup point to route:', pointErr);
                 }
             }
         }
@@ -2629,7 +2817,7 @@ async function handleSaveRouteSubmit(e) {
 }
 
 async function deleteRoute(id) {
-    if (!confirm('هل أنت متأكد من حذف خط السير هذا وكافة توقفاته؟')) return;
+    if (!confirm('هل أنت متأكد من حذف خط السير هذا ونقاط ركوبه؟')) return;
     try {
         await window.routesApi.delete(id);
         showToast('تم حذف خط السير بنجاح.', 'success');
@@ -2641,15 +2829,15 @@ async function deleteRoute(id) {
 
 async function openManageRouteStopsModal(routeId, routeName) {
     document.getElementById('current-stops-route-id').value = routeId;
-    document.getElementById('route-stops-title').innerText = `توقفات ومحطات خط السير: ${routeName}`;
+    document.getElementById('route-stops-title').innerText = `نقاط ركوب خط السير: ${routeName}`;
 
-    // Populate station dropdown
-    await loadCeoStations();
-    const stationSelect = document.getElementById('new-stop-station-select');
-    stationSelect.innerHTML = '<option value="">اختر محطة لإضافتها</option>';
-    cachedStations.forEach(st => {
-        stationSelect.innerHTML += `<option value="${st.id}">${st.name}</option>`;
-    });
+    // Reset the add form
+    const nameInput = document.getElementById('new-stop-point-name');
+    const addrInput = document.getElementById('new-stop-point-address');
+    const orderInput = document.getElementById('new-stop-order');
+    if (nameInput) nameInput.value = '';
+    if (addrInput) addrInput.value = '';
+    if (orderInput) orderInput.value = '';
 
     loadRouteStopsList(routeId);
 
@@ -2663,59 +2851,75 @@ async function loadRouteStopsList(routeId) {
     list.innerHTML = '<p class="text-center text-xs text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</p>';
 
     try {
-        const stops = await window.routesApi.getStops(routeId);
-        if (Array.isArray(stops) && stops.length > 0) {
+        // GET /routes/{route_id}/pickup-points — ordered by sequence.
+        const points = await window.routesApi.listPickupPoints(routeId);
+        if (Array.isArray(points) && points.length > 0) {
             list.innerHTML = '';
-            stops.forEach(s => {
+            points.forEach(s => {
                 list.innerHTML += `
                     <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl flex items-center justify-between border border-slate-200 dark:border-slate-800">
                         <div class="flex items-center gap-3">
-                            <span class="w-6 h-6 rounded-full bg-[#0B5DAA] text-white flex items-center justify-center font-bold text-xs">${s.stop_order}</span>
-                            <span class="font-bold text-xs">${s.station?.name || `محطة #${s.station_id}`}</span>
+                            <span class="w-6 h-6 rounded-full bg-[#0B5DAA] text-white flex items-center justify-center font-bold text-xs">${s.sequence}</span>
+                            <div>
+                                <span class="font-bold text-xs">${s.name || `نقطة #${s.id}`}</span>
+                                ${s.address ? `<span class="block text-[10px] text-slate-400">${s.address}</span>` : ''}
+                            </div>
                         </div>
                         <button onclick="removeRouteStop(${routeId}, ${s.id})" class="text-rose-500 hover:text-rose-600 text-xs font-bold bg-transparent border-0 cursor-pointer"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 `;
             });
         } else {
-            list.innerHTML = '<p class="text-center text-xs text-slate-400 py-4">لا توجد محطات توقف وسيطة لهذا الخط بعد</p>';
+            list.innerHTML = '<p class="text-center text-xs text-slate-400 py-4">لا توجد نقاط ركوب مسجلة تحت هذا الخط بعد</p>';
         }
     } catch (e) {
-        list.innerHTML = '<p class="text-center text-xs text-rose-500 py-4">تعذر تحميل التوقفات</p>';
+        list.innerHTML = '<p class="text-center text-xs text-rose-500 py-4">تعذر تحميل نقاط الركوب</p>';
     }
 }
 
 async function handleAddRouteStopSubmit(e) {
     e.preventDefault();
     const routeId = parseInt(document.getElementById('current-stops-route-id').value);
-    const stationId = parseInt(document.getElementById('new-stop-station-select').value);
-    const stopOrder = parseInt(document.getElementById('new-stop-order').value);
+    const name = (document.getElementById('new-stop-point-name').value || '').trim();
+    const address = (document.getElementById('new-stop-point-address').value || '').trim();
+    const orderRaw = document.getElementById('new-stop-order').value;
+    const sequence = orderRaw ? parseInt(orderRaw, 10) : null;
+
+    if (!name) { showToast('يرجى إدخال اسم نقطة الركوب.', 'error'); return; }
 
     try {
-        await window.routesApi.addStop(routeId, { station_id: stationId, stop_order: stopOrder });
-        showToast('تمت إضافة محطة التوقف بنجاح.', 'success');
+        const payload = { name };
+        if (address) payload.address = address;
+        if (Number.isInteger(sequence) && sequence > 0) payload.sequence = sequence;
+        await window.routesApi.addPickupPoint(routeId, payload);
+        showToast('تمت إضافة نقطة الركوب بنجاح.', 'success');
+        document.getElementById('new-stop-point-name').value = '';
+        document.getElementById('new-stop-point-address').value = '';
         document.getElementById('new-stop-order').value = '';
         loadRouteStopsList(routeId);
+        loadCeoRoutes();
     } catch (err) {
-        console.error('Add stop error:', err);
+        console.error('Add pickup point error:', err);
     }
 }
 
-async function removeRouteStop(routeId, stopId) {
+async function removeRouteStop(routeId, pointId) {
     try {
-        await window.routesApi.removeStop(routeId, stopId);
-        showToast('تم حذف المحطة من الخط.', 'success');
+        await window.routesApi.deletePickupPoint(routeId, pointId);
+        showToast('تم حذف نقطة الركوب من الخط.', 'success');
         loadRouteStopsList(routeId);
+        loadCeoRoutes();
     } catch (err) {
-        console.error('Remove stop error:', err);
+        console.error('Remove pickup point error:', err);
     }
 }
 
-// 7. CEO: Scheduled Trips Management
+// 7. CEO: Scheduled Trips Management (trip = route + direction + ordered
+// stops; times are DERIVED from the stops — no fare).
 async function loadCeoTrips() {
     const tbody = document.getElementById('ceo-trips-tbody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
 
     try {
         const res = await window.tripsApi.list({ page_size: 50 });
@@ -2725,17 +2929,28 @@ async function loadCeoTrips() {
             tbody.innerHTML = '';
             items.forEach(t => {
                 const rName = t.route?.name || `خط #${t.route_id}`;
+                const isOutbound = t.direction === 'OUTBOUND';
+                const dirLabel = isOutbound ? 'ذهاب' : 'عودة';
                 const busPlate = t.bus?.license_plate || `باص #${t.bus_id}`;
                 const supName = t.supervisor?.full_name || `مشرف #${t.supervisor_id}`;
-                const depTime = new Date(t.departure_time).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' });
+                const depTime = t.departure_time ? new Date(t.departure_time).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : '--';
+                const arrTime = t.estimated_arrival_time ? new Date(t.estimated_arrival_time).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '--';
+                const stopsCount = Array.isArray(t.trip_stops) ? t.trip_stops.length : 0;
+                const capLabel = t.passenger_capacity != null ? `${t.passenger_capacity} مقعد` : '--';
+                const obLabel = t.allow_overbooking ? ' ✓' : '';
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
                         <td class="p-4 font-black text-slate-800 dark:text-white">${rName}</td>
+                        <td class="p-4">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-black ${isOutbound ? 'bg-blue-500/15 text-blue-500' : 'bg-emerald-500/15 text-emerald-500'}">
+                                ${dirLabel}
+                            </span>
+                        </td>
                         <td class="p-4 font-mono font-bold text-slate-600 dark:text-slate-300">${busPlate}</td>
                         <td class="p-4 font-bold text-slate-600 dark:text-slate-300">${supName}</td>
-                        <td class="p-4 font-mono font-bold text-brand-primary dark:text-brand-secondary">${depTime}</td>
-                        <td class="p-4 font-mono font-bold">${t.fare_amount} EGP</td>
+                        <td class="p-4 font-mono font-bold text-brand-primary dark:text-brand-secondary">${depTime} ← ${arrTime}<span class="block text-[10px] text-slate-400 font-normal">${stopsCount} محطة</span></td>
+                        <td class="p-4 font-mono font-bold text-slate-500">${capLabel}${obLabel}</td>
                         <td class="p-4">
                             <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${t.status === 'SCHEDULED' ? 'bg-blue-500/15 text-blue-500' : 'bg-emerald-500/15 text-emerald-500'}">
                                 ${t.status}
@@ -2743,7 +2958,7 @@ async function loadCeoTrips() {
                         </td>
                         <td class="p-4 text-center">
                             <button onclick="openManagePickupPointsModal(${t.id})" class="text-brand-primary hover:underline font-bold text-xs bg-transparent border-0 cursor-pointer ml-3">
-                                نقاط التجمع (${Array.isArray(t.pickup_points) ? t.pickup_points.length : 0})
+                                المحطات (${stopsCount})
                             </button>
                             <button onclick="deleteScheduledTrip(${t.id})" class="text-rose-500 hover:underline font-bold text-xs bg-transparent border-0 cursor-pointer">
                                 حذف
@@ -2753,10 +2968,10 @@ async function loadCeoTrips() {
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400 font-bold">لا توجد رحلات مجدولة بالنظام</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400 font-bold">لا توجد رحلات مجدولة بالنظام</td></tr>';
         }
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل جدول الرحلات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل جدول الرحلات</td></tr>';
     }
 }
 
@@ -2772,47 +2987,168 @@ async function openAddTripModal() {
     const busSelect = document.getElementById('trip-bus-select');
     const supSelect = document.getElementById('trip-supervisor-select');
 
-    routeSelect.innerHTML = '';
+    routeSelect.innerHTML = '<option value="">اختر خط السير</option>';
     (routesRes?.items || []).forEach(r => {
-        routeSelect.innerHTML += `<option value="${r.id}">${r.route_number} - ${r.name}</option>`;
+        routeSelect.innerHTML += `<option value="${r.id}">${r.name}</option>`;
     });
 
-    busSelect.innerHTML = '';
+    busSelect.innerHTML = '<option value="">اختر الحافلة</option>';
     (busesRes?.items || []).forEach(b => {
         busSelect.innerHTML += `<option value="${b.id}">${b.bus_number} (${b.license_plate}) - ${b.capacity} مقعد</option>`;
     });
 
-    supSelect.innerHTML = '';
+    supSelect.innerHTML = '<option value="">اختر المشرف</option>';
     (supsRes?.items || []).forEach(s => {
         supSelect.innerHTML += `<option value="${s.id}">${s.full_name}</option>`;
     });
 
+    // Reset stops container until a route is selected
+    const stopsContainer = document.getElementById('trip-stops-container');
+    if (stopsContainer) stopsContainer.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-3">اختر خط السير أولاً لجلب نقاط الركوب المسجلة تحته.</p>';
+
     const modal = document.getElementById('add-trip-modal');
     if (modal) modal.classList.remove('hidden');
+}
+
+// Step 2 of trip creation: fetch the selected route's registered pickup
+// points (GET /trips/route-points/{route_id}) so the CEO can select, order,
+// and time them as trip stops.
+async function onTripRouteChange() {
+    const routeSelect = document.getElementById('trip-route-select');
+    const stopsContainer = document.getElementById('trip-stops-container');
+    if (!routeSelect || !stopsContainer) return;
+
+    const routeId = parseInt(routeSelect.value, 10);
+    if (!Number.isInteger(routeId) || routeId <= 0) {
+        stopsContainer.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-3">اختر خط السير أولاً لجلب نقاط الركوب المسجلة تحته.</p>';
+        return;
+    }
+
+    stopsContainer.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-3"><i class="fa-solid fa-spinner fa-spin"></i> جاري جلب نقاط الركوب...</p>';
+
+    try {
+        const route = await window.tripsApi.getRoutePoints(routeId);
+        const points = Array.isArray(route?.pickup_points) ? route.pickup_points : [];
+
+        if (!points.length) {
+            stopsContainer.innerHTML = '<p class="text-[11px] text-amber-500 text-center py-3 font-bold">لا توجد نقاط ركوب مسجلة تحت هذا الخط. أضف نقاط الركوب من صفحة "خطوط السير" أولاً.</p>';
+            return;
+        }
+
+        tripRoutePointsCache = points;
+        stopsContainer.innerHTML = '';
+        points.forEach((p, idx) => {
+            stopsContainer.innerHTML += `
+                <div class="trip-stop-row flex items-center gap-2 bg-slate-50 dark:bg-slate-900/80 p-2 rounded-xl border border-slate-200 dark:border-slate-800" data-point-id="${p.id}">
+                    <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-300 cursor-pointer whitespace-nowrap">
+                        <input type="checkbox" class="trip-stop-check w-4 h-4 accent-[#0B5DAA]" checked>
+                        <span class="text-brand-primary dark:text-[#6AB9FF]">${p.name || `نقطة #${p.id}`}</span>
+                    </label>
+                    <input type="number" class="trip-stop-order w-16 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs focus:outline-none" min="1" value="${idx + 1}" title="ترتيب المحطة">
+                    <input type="datetime-local" class="trip-stop-time flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs focus:outline-none" title="وقت المغادرة من المحطة">
+                </div>
+            `;
+        });
+    } catch (e) {
+        stopsContainer.innerHTML = '<p class="text-[11px] text-rose-500 text-center py-3">تعذر جلب نقاط الركوب لهذا الخط.</p>';
+    }
+}
+
+// Add one more stop row manually (from the already-fetched route points).
+function addTripStopRow() {
+    const stopsContainer = document.getElementById('trip-stops-container');
+    if (!stopsContainer || !tripRoutePointsCache.length) {
+        showToast('اختر خط السير أولاً لجلب نقاط الركوب.', 'error');
+        return;
+    }
+    const existingIds = new Set(
+        Array.from(document.querySelectorAll('.trip-stop-row')).map(r => Number(r.dataset.pointId))
+    );
+    const available = tripRoutePointsCache.filter(p => !existingIds.has(Number(p.id)));
+    if (!available.length) {
+        showToast('كل نقاط الركوب المسجلة تحت هذا الخط مضافة بالفعل.', 'info');
+        return;
+    }
+    const p = available[0];
+    const row = document.createElement('div');
+    row.className = 'trip-stop-row flex items-center gap-2 bg-slate-50 dark:bg-slate-900/80 p-2 rounded-xl border border-slate-200 dark:border-slate-800';
+    row.dataset.pointId = String(p.id);
+    row.innerHTML = `
+        <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-300 cursor-pointer whitespace-nowrap">
+            <input type="checkbox" class="trip-stop-check w-4 h-4 accent-[#0B5DAA]" checked>
+            <span class="text-brand-primary dark:text-[#6AB9FF]">${p.name || `نقطة #${p.id}`}</span>
+        </label>
+        <input type="number" class="trip-stop-order w-16 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs focus:outline-none" min="1" title="ترتيب المحطة">
+        <input type="datetime-local" class="trip-stop-time flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs focus:outline-none" title="وقت المغادرة من المحطة">
+    `;
+    stopsContainer.appendChild(row);
 }
 
 async function handleCreateScheduledTripSubmit(e) {
     e.preventDefault();
 
     const routeId = parseInt(document.getElementById('trip-route-select').value);
+    const direction = document.getElementById('trip-direction-select').value;
     const busId = parseInt(document.getElementById('trip-bus-select').value);
     const supId = parseInt(document.getElementById('trip-supervisor-select').value);
-    const depTime = document.getElementById('trip-departure-input').value;
-    const arrTime = document.getElementById('trip-arrival-input').value;
-    const fare = document.getElementById('trip-fare-input').value;
     const capVal = document.getElementById('trip-capacity-input').value;
     const cap = capVal ? parseInt(capVal) : null;
+    const allowOverbooking = document.getElementById('trip-overbooking-input')?.checked || false;
+    const submitBtn = e.submitter || document.querySelector('#add-trip-modal button[type="submit"]');
+
+    // Collect the selected/ordered/timed stops (TripCreateRequest.stops).
+    const stops = [];
+    document.querySelectorAll('.trip-stop-row').forEach(row => {
+        const checked = row.querySelector('.trip-stop-check')?.checked;
+        if (!checked) return;
+        const pointId = parseInt(row.dataset.pointId, 10);
+        const orderRaw = row.querySelector('.trip-stop-order')?.value;
+        const stopOrder = orderRaw ? parseInt(orderRaw, 10) : NaN;
+        const timeRaw = row.querySelector('.trip-stop-time')?.value;
+        if (!Number.isInteger(pointId) || pointId <= 0) return;
+        if (!Number.isInteger(stopOrder) || stopOrder <= 0) return;
+        if (!timeRaw) return;
+        stops.push({
+            pickup_point_id: pointId,
+            stop_order: stopOrder,
+            departure_time: new Date(timeRaw).toISOString()
+        });
+    });
+
+    // Mirror TripCreateRequest validation (server remains authoritative).
+    if (!Number.isInteger(routeId) || routeId <= 0) { showToast('يرجى اختيار خط السير.', 'error'); return; }
+    if (!direction) { showToast('يرجى اختيار اتجاه الرحلة.', 'error'); return; }
+    if (!Number.isInteger(busId) || busId <= 0) { showToast('يرجى اختيار الحافلة.', 'error'); return; }
+    if (!Number.isInteger(supId) || supId <= 0) { showToast('يرجى اختيار المشرف المسؤول.', 'error'); return; }
+    if (!stops.length) {
+        showToast('أضف محطة واحدة على الأقل: حدّد نقاط الركوب وترتيبها ووقت كل محطة.', 'error');
+        return;
+    }
+    const pointIds = new Set(stops.map(s => s.pickup_point_id));
+    const orderVals = new Set(stops.map(s => s.stop_order));
+    if (pointIds.size !== stops.length) { showToast('لا يمكن تكرار نفس نقطة الركوب في أكثر من محطة.', 'error'); return; }
+    if (orderVals.size !== stops.length) { showToast('لا يمكن تكرار نفس ترتيب المحطات (stop_order).', 'error'); return; }
+    if (cap != null && (!Number.isInteger(cap) || cap < 1 || cap > 150)) { showToast('السعة يجب أن تكون بين 1 و 150.', 'error'); return; }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.dataset.origText = submitBtn.innerText;
+        submitBtn.innerText = '⏳ جاري جدولة الرحلة...';
+    }
 
     try {
+        // TripCreateRequest: route + direction + bus + supervisor + stops.
+        // departure_time / estimated_arrival_time are DERIVED server-side from
+        // the first/last stop; there is no fare field.
         const payload = {
             route_id: routeId,
+            direction: direction,
             bus_id: busId,
             supervisor_id: supId,
-            departure_time: new Date(depTime).toISOString(),
-            estimated_arrival_time: new Date(arrTime).toISOString(),
-            fare_amount: fare,
-            passenger_capacity: cap
+            allow_overbooking: allowOverbooking,
+            stops: stops
         };
+        if (cap != null) payload.passenger_capacity = cap;
 
         await window.tripsApi.create(payload);
         showToast('تمت جدولة الرحلة بنجاح!', 'success');
@@ -2820,6 +3156,11 @@ async function handleCreateScheduledTripSubmit(e) {
         loadCeoTrips();
     } catch (err) {
         console.error('Schedule trip error:', err);
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = submitBtn.dataset.origText || 'حفظ الرحلة وجدولتها';
+        }
     }
 }
 
@@ -2834,7 +3175,10 @@ async function deleteScheduledTrip(tripId) {
     }
 }
 
-// 7b. CEO: Trip Pickup (Gathering) Points — required for students to subscribe
+// 7b. CEO: Trip Stops viewer (read-only ordered stops of a scheduled trip).
+// Stop composition is set at creation (POST /trips with stops); replacing the
+// sequence uses PATCH /trips/{id}/stops. Deletion of individual points uses
+// the route's pickup-point endpoint (409 when referenced by bookings).
 async function openManagePickupPointsModal(tripId) {
     currentPickupTripId = Number(tripId);
     const modal = document.getElementById('manage-pickup-points-modal');
@@ -2842,11 +3186,6 @@ async function openManagePickupPointsModal(tripId) {
 
     const ctx = document.getElementById('pickup-trip-context');
     if (ctx) ctx.innerText = `رقم الرحلة: #${currentPickupTripId}`;
-
-    const nameInput = document.getElementById('pickup-name-input');
-    const addressInput = document.getElementById('pickup-address-input');
-    if (nameInput) nameInput.value = '';
-    if (addressInput) addressInput.value = '';
 
     modal.classList.remove('hidden');
     await loadTripPickupPoints();
@@ -2858,72 +3197,28 @@ async function loadTripPickupPoints() {
     tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
 
     try {
-        const res = await window.tripsApi.listPickupPoints(currentPickupTripId);
-        const items = Array.isArray(res) ? res : (res?.items || []);
+        // GET /trips/{trip_id}/stops — TripStopResponse[] ordered by stop_order.
+        const items = await window.tripsApi.listStops(currentPickupTripId);
+        const stops = Array.isArray(items) ? items : (items?.items || []);
 
-        if (items.length > 0) {
+        if (stops.length > 0) {
             tbody.innerHTML = '';
-            items.forEach(p => {
+            stops.forEach(s => {
+                const timeStr = s.departure_time ? new Date(s.departure_time).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : '--';
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
-                        <td class="p-3 font-bold text-slate-800 dark:text-white">${p.name}</td>
-                        <td class="p-3 text-slate-500 dark:text-slate-400">${p.address || '—'}</td>
-                        <td class="p-3 font-mono font-bold">${p.sequence}</td>
-                        <td class="p-3 text-center">
-                            <button onclick="deletePickupPoint(${p.id})" class="text-rose-500 hover:underline font-bold text-xs bg-transparent border-0 cursor-pointer">حذف</button>
-                        </td>
+                        <td class="p-3 font-mono font-bold">${s.stop_order}</td>
+                        <td class="p-3 font-bold text-slate-800 dark:text-white">${s.point_name || `نقطة #${s.pickup_point_id}`}</td>
+                        <td class="p-3 font-mono text-slate-500">${timeStr}</td>
+                        <td class="p-3 text-slate-500 dark:text-slate-400">${s.address || '—'}</td>
                     </tr>
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 font-bold">لا توجد نقاط تجمع لهذه الرحلة بعد</td></tr>';
-        }
-
-        const seqInput = document.getElementById('pickup-sequence-input');
-        if (seqInput) {
-            const maxSeq = items.reduce((max, p) => Math.max(max, Number(p.sequence) || 0), 0);
-            seqInput.value = items.length ? maxSeq + 1 : 1;
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 font-bold">لا توجد محطات مسجلة لهذه الرحلة</td></tr>';
         }
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-rose-500 font-bold">تعذر تحميل نقاط التجمع</td></tr>';
-    }
-}
-
-async function handleAddPickupPoint(e) {
-    e.preventDefault();
-    if (!currentPickupTripId) return;
-
-    const name = document.getElementById('pickup-name-input').value.trim();
-    const address = document.getElementById('pickup-address-input').value.trim();
-    const sequence = parseInt(document.getElementById('pickup-sequence-input').value);
-
-    if (!name) { showToast('يرجى إدخال اسم نقطة التجمع.', 'error'); return; }
-    if (!Number.isInteger(sequence) || sequence < 1) { showToast('الترتيب (Sequence) يجب أن يكون رقماً صحيحاً ≥ 1.', 'error'); return; }
-
-    try {
-        const payload = { name, sequence };
-        if (address) payload.address = address;
-        await window.tripsApi.addPickupPoint(currentPickupTripId, payload);
-        showToast('تمت إضافة نقطة التجمع بنجاح.', 'success');
-        document.getElementById('pickup-name-input').value = '';
-        document.getElementById('pickup-address-input').value = '';
-        await loadTripPickupPoints();
-        loadCeoTrips();
-    } catch (err) {
-        console.error('Add pickup point error:', err);
-    }
-}
-
-async function deletePickupPoint(pointId) {
-    if (!currentPickupTripId) return;
-    if (!confirm('هل أنت متأكد من حذف نقطة التجمع هذه؟')) return;
-    try {
-        await window.tripsApi.deletePickupPoint(currentPickupTripId, pointId);
-        showToast('تم حذف نقطة التجمع.', 'success');
-        await loadTripPickupPoints();
-        loadCeoTrips();
-    } catch (err) {
-        console.error('Delete pickup point error:', err);
+        tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-rose-500 font-bold">تعذر تحميل محطات الرحلة</td></tr>';
     }
 }
 
@@ -2942,6 +3237,15 @@ async function loadCeoPayments() {
             items.forEach(p => {
                 const stName = p.student?.full_name || `طالب #${p.student_id}`;
                 const isPending = p.status === 'PENDING' || p.status === 'SUBMITTED';
+                const isDigital = p.method === 'VODAFONE_CASH' || p.method === 'INSTAPAY';
+                // Digital payments require BOTH reference AND receipt before verify
+                // (PAYMENTS.md §5) — the backend rejects verify with 422 otherwise.
+                const canVerify = isPending && (!isDigital || Boolean(p.receipt_image_path));
+                const receiptCell = isDigital
+                    ? (p.receipt_image_path
+                        ? `<button onclick="openReceiptViewer(${p.id})" class="text-brand-primary hover:underline font-bold text-xs bg-transparent border-0 cursor-pointer">عرض الإيصال</button>`
+                        : '<span class="text-[10px] text-amber-500 font-bold">لم يُرفع</span>')
+                    : '<span class="text-slate-400 text-xs">نقدي</span>';
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
@@ -2950,6 +3254,7 @@ async function loadCeoPayments() {
                         <td class="p-4 font-mono font-bold text-slate-800 dark:text-white">${p.amount} ${p.currency}</td>
                         <td class="p-4 font-bold">${p.method}</td>
                         <td class="p-4 font-mono text-slate-400">${p.transaction_reference || 'لا يوجد'}</td>
+                        <td class="p-4 text-center">${receiptCell}</td>
                         <td class="p-4">
                             <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${p.status === 'VERIFIED' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-amber-500/15 text-amber-500'}">
                                 ${p.status}
@@ -2957,7 +3262,7 @@ async function loadCeoPayments() {
                         </td>
                         <td class="p-4 text-center space-x-1 flex items-center justify-center gap-2">
                             ${isPending ? `
-                                <button onclick="verifyPayment(${p.id})" class="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg border-0 cursor-pointer">
+                                <button ${canVerify ? '' : 'disabled title="بانتظار صورة الإيصال من الطالب"'} onclick="verifyPayment(${p.id})" class="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg border-0 cursor-pointer ${canVerify ? '' : 'opacity-40 cursor-not-allowed'}">
                                     <i class="fa-solid fa-check"></i> اعتماد
                                 </button>
                                 <button onclick="rejectPayment(${p.id})" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg border-0 cursor-pointer">
@@ -2969,7 +3274,7 @@ async function loadCeoPayments() {
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400 font-bold">لا توجد عمليات دفع مسجلة</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400 font-bold">لا توجد عمليات دفع مسجلة</td></tr>';
         }
     } catch (e) {
         tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل المدفوعات</td></tr>';
@@ -3057,10 +3362,9 @@ function openAddPlanModal() {
 
 /**
  * Keep the duration field aligned with the selected plan type.
- * DAILY is FLEXIBLE: duration_days is the CEO-defined validity window and
- * days_per_week caps weekly transportation usage days (1–7).
- * Every type is CEO-defined (1–730). Never assume WEEKLY=7 / MONTHLY=30 /
- * TERM=90 — the CEO's values are authoritative.
+ * DAILY is FIXED: duration_days = exactly 1 (SUBSCRIPTIONS.md §1).
+ * WEEKLY / MONTHLY / TERM: CEO-defined, 1–730. Never assume WEEKLY=7 /
+ * MONTHLY=30 / TERM=90 — the CEO's values are authoritative.
  */
 function onPlanTypeChange() {
     updatePlanDurationHint();
@@ -3072,13 +3376,18 @@ function updatePlanDurationHint() {
     const hint = document.getElementById('plan-duration-hint');
     if (!input) return;
 
-    input.readOnly = false;
-    input.min = '1';
-    input.max = String(MAX_PLAN_DURATION_DAYS);
     if (type === 'DAILY') {
-        if (hint) hint.textContent = `باقة يومية مرنة: المدة فترة صلاحية يحددها المدير (من 1 إلى ${MAX_PLAN_DURATION_DAYS} يوماً) ويختار الطالب بها أيام مواصلات محددة — حتى ${document.getElementById('plan-days-per-week-input')?.value || 1} يوم في الأسبوع.`;
+        // DAILY must be exactly 1 (schema + DB constraint).
+        input.readOnly = true;
+        input.value = '1';
+        input.min = '1';
+        input.max = '1';
+        if (hint) hint.textContent = 'باقة يومية: المدة ثابتة يوم واحد بالضبط، وأيام الأسبوع (1–7) تحدد سقف أيام الاستخدام الأسبوعية.';
     } else {
-        if (hint) hint.textContent = `مدة حرة يحددها المدير التنفيذي: من 1 إلى ${MAX_PLAN_DURATION_DAYS} يوم (مثال: WEEKLY + 8 أيام، MONTHLY + 45 يوماً، TERM + 120 يوماً).`;
+        input.readOnly = false;
+        input.min = '1';
+        input.max = String(MAX_PLAN_DURATION_DAYS);
+        if (hint) hint.textContent = `مدة حرة يحددها المدير التنفيذي: من 1 إلى ${MAX_PLAN_DURATION_DAYS} يوم (مثال: WEEKLY + 5 أيام، MONTHLY + 45 يوماً، TERM + 120 يوماً).`;
     }
 }
 
@@ -3093,6 +3402,11 @@ async function handleCreatePlanSubmit(e) {
     const dpw = dpwVal ? parseInt(dpwVal) : null;
 
     // Mirror backend validation — server remains authoritative.
+    // DAILY is fixed to exactly 1 day (SUBSCRIPTIONS.md §1).
+    if (type === 'DAILY' && dur !== 1) {
+        showToast('باقة DAILY يجب أن تكون مدتها يوم واحد بالضبط.', 'error');
+        return;
+    }
     if (!Number.isInteger(dur) || dur < 1 || dur > MAX_PLAN_DURATION_DAYS) {
         showToast(`المدة يجب أن تكون بين 1 و ${MAX_PLAN_DURATION_DAYS} يوماً.`, 'error');
         return;
@@ -3146,14 +3460,18 @@ function openEditPlanModal(planId, name, planType, price, durationDays, daysPerW
 
     const durInput = document.getElementById('edit-plan-duration-input');
     const durHint = document.getElementById('edit-plan-duration-hint');
-    // DAILY is flexible: show the stored CEO-defined duration, editable.
-    durInput.readOnly = false;
-    durInput.min = '1';
-    durInput.max = String(MAX_PLAN_DURATION_DAYS);
-    durInput.value = durationDays != null ? String(durationDays) : '';
+    // DAILY is fixed to exactly 1 day; other types are CEO-defined (1–730).
     if (planType === 'DAILY') {
-        if (durHint) durHint.textContent = `باقة يومية مرنة: المدة فترة صلاحية حرة (من 1 إلى ${MAX_PLAN_DURATION_DAYS} يوماً) وأيام الأسبوع تحدد سقف الاستخدام الأسبوعي.`;
+        durInput.readOnly = true;
+        durInput.min = '1';
+        durInput.max = '1';
+        durInput.value = '1';
+        if (durHint) durHint.textContent = 'باقة يومية: المدة ثابتة يوم واحد بالضبط.';
     } else {
+        durInput.readOnly = false;
+        durInput.min = '1';
+        durInput.max = String(MAX_PLAN_DURATION_DAYS);
+        durInput.value = durationDays != null ? String(durationDays) : '';
         if (durHint) durHint.textContent = `مدة حرة يحددها المدير التنفيذي: من 1 إلى ${MAX_PLAN_DURATION_DAYS} يوم.`;
     }
 
@@ -3171,11 +3489,17 @@ async function handleUpdatePlanSubmit(e) {
     const dur = durVal ? parseInt(durVal) : null;
     const dpwVal = document.getElementById('edit-plan-days-per-week-input').value;
     const dpw = dpwVal ? parseInt(dpwVal) : null;
+    const planType = document.getElementById('edit-plan-type').value;
 
     if (!Number.isInteger(planId) || planId <= 0) { showToast('رقم الباقة غير صالح.', 'error'); return; }
     if (!name) { showToast('يرجى إدخال اسم الباقة.', 'error'); return; }
 
     // نفس قواعد التحقق في الإنشاء (نفسها في الخادم).
+    // DAILY is fixed to exactly 1 day (SUBSCRIPTIONS.md §1).
+    if (planType === 'DAILY' && dur !== 1) {
+        showToast('باقة DAILY يجب أن تكون مدتها يوم واحد بالضبط.', 'error');
+        return;
+    }
     if (!Number.isInteger(dur) || dur < 1 || dur > MAX_PLAN_DURATION_DAYS) {
         showToast(`المدة يجب أن تكون بين 1 و ${MAX_PLAN_DURATION_DAYS} يوماً.`, 'error');
         return;

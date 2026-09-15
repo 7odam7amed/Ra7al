@@ -464,26 +464,27 @@
                 </div>
             </div>
 
-            <!-- TAB 2: Daily Transportation Selection (Tomorrow) -->
+            <!-- TAB 2: Daily Transportation (upcoming trips) -->
             <div id="student-tab-trips-booking" class="student-subview hidden space-y-6">
-                <!-- Tomorrow-only banner -->
+                <!-- Upcoming-trips banner -->
                 <div class="rounded-2xl border border-brand-primary/15 bg-brand-primary/5 dark:bg-brand-primary/10 px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-300">
                     <i class="fa-solid fa-calendar-day ml-1 text-brand-primary"></i>
-                    الحجز متاح لرحلات <span id="student-tomorrow-label">الغد</span> فقط — الخادم يحدد تاريخ الخدمة تلقائياً (لا يمكن اختيار أي تاريخ آخر).
+                    تظهر هنا <span class="text-brand-primary">كل الرحلات القادمة المجدولة</span> — اختر رحلة ونقطة الركوب/النزول المناسبة لك.
                     تتطلب المواصلات <span class="text-brand-primary">اشتراكاً نشطاً</span>؛ اشترِ أو جدّد باقتك من تبويب "بطاقة QR".
+                    القاعدة: حجز واحد لرحلة الذهاب + حجز واحد لرحلة العودة في نفس اليوم.
                 </div>
-                <!-- Tomorrow's Available Trips -->
+                <!-- Upcoming Available Trips -->
                 <div class="glass-card rounded-3xl overflow-hidden shadow-sm">
                     <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center flex-wrap gap-2">
                         <div>
-                            <h3 class="font-black text-sm">رحلات الغد المتاحة</h3>
-                            <p class="text-xs text-slate-400 mt-0.5">اختر الرحلة ثم نقاط تجمع الذهاب والعودة المناسبة لك</p>
+                            <h3 class="font-black text-sm">الرحلات القادمة المتاحة</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">اختر الرحلة ثم نقطة الركوب (ذهاب) أو النزول (عودة) المناسبة لك</p>
                         </div>
                         <div class="flex items-center gap-2">
-                            <select id="student-direction-mode-select" onchange="loadStudentAvailableTrips()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                                <option value="BOTH">ذهاب وعودة (BOTH)</option>
-                                <option value="OUTBOUND_ONLY">ذهاب فقط (OUTBOUND_ONLY)</option>
-                                <option value="RETURN_ONLY">عودة فقط (RETURN_ONLY)</option>
+                            <select id="student-direction-filter" onchange="loadStudentAvailableTrips()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                                <option value="">كل الاتجاهات</option>
+                                <option value="OUTBOUND">ذهاب (OUTBOUND)</option>
+                                <option value="RETURN">عودة (RETURN)</option>
                             </select>
                             <button onclick="loadStudentAvailableTrips()" class="text-xs text-brand-primary font-bold hover:underline bg-transparent border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
                         </div>
@@ -493,14 +494,15 @@
                             <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
                                 <tr>
                                     <th class="p-4">الرحلة</th>
-                                    <th class="p-4">تاريخ الخدمة (الغد)</th>
-                                    <th class="p-4">الإقلاع</th>
+                                    <th class="p-4">الاتجاه</th>
+                                    <th class="p-4">الوجهة</th>
+                                    <th class="p-4">المغادرة</th>
                                     <th class="p-4">المقاعد المتاحة</th>
                                     <th class="p-4 text-center">الحجز</th>
                                 </tr>
                             </thead>
                             <tbody id="student-available-trips-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="5" class="p-6 text-center text-slate-400">جاري تحميل رحلات الغد...</td></tr>
+                                <tr><td colspan="6" class="p-6 text-center text-slate-400">جاري تحميل الرحلات القادمة...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -518,14 +520,15 @@
                             <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
                                 <tr>
                                     <th class="p-4">رقم الحجز</th>
-                                    <th class="p-4">رحلة الغد</th>
+                                    <th class="p-4">الرحلة</th>
+                                    <th class="p-4">الاتجاه</th>
                                     <th class="p-4">تاريخ الخدمة</th>
                                     <th class="p-4">الحالة</th>
                                     <th class="p-4 text-center">العمليات</th>
                                 </tr>
                             </thead>
                             <tbody id="student-my-reservations-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="5" class="p-6 text-center text-slate-400">جاري تحميل الحجوزات...</td></tr>
+                                <tr><td colspan="6" class="p-6 text-center text-slate-400">جاري تحميل الحجوزات...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -550,12 +553,13 @@
                                     <th class="p-4">المبلغ</th>
                                     <th class="p-4">طريقة الدفع</th>
                                     <th class="p-4">المرجع / التحويل</th>
+                                    <th class="p-4">الإيصال</th>
                                     <th class="p-4">الحالة</th>
                                     <th class="p-4 text-center">العمليات</th>
                                 </tr>
                             </thead>
                             <tbody id="student-my-payments-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="6" class="p-6 text-center text-slate-400">جاري تحميل سجل المدفوعات...</td></tr>
+                                <tr><td colspan="7" class="p-6 text-center text-slate-400">جاري تحميل سجل المدفوعات...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -695,12 +699,29 @@
 
 
         <!-- ================= 7) CEO DASHBOARD ================= -->
-        <section id="ceo-view" class="hidden min-h-[600px] flex view-transition">
-            <!-- Sidebar Navigation -->
-            <aside class="w-64 bg-black dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col shrink-0">
-                <div class="p-6 border-b border-slate-200 dark:border-slate-800">
-                    <h3 class="text-xl font-black text-[#0B5DAA] tracking-wider poppins leading-loose">RAHAAL</h3>
-                    <p class="text-[10px] text-slate-400 font-bold mt-1">لوحة الإدارة التنفيذية لرحال</p>
+        <section id="ceo-view" class="hidden min-h-[600px] ceo-layout">
+            <!-- Mobile top bar with drawer toggle (hidden on lg+) -->
+            <div class="ceo-mobile-bar">
+                <button id="ceo-sidebar-toggle" onclick="toggleCeoSidebar()" aria-expanded="false" aria-controls="ceo-sidebar" aria-label="فتح قائمة التنقل" class="ceo-sidebar-toggle-btn">
+                    <i class="fa-solid fa-bars"></i>
+                    <span>القائمة</span>
+                </button>
+                <span class="ceo-mobile-bar-title">لوحة إدارة رحال</span>
+            </div>
+
+            <!-- Backdrop overlay (mobile/tablet only) -->
+            <div id="ceo-sidebar-backdrop" onclick="closeCeoSidebar()" class="ceo-sidebar-backdrop" aria-hidden="true"></div>
+
+            <!-- Sidebar Navigation: static panel on desktop, overlay drawer on mobile -->
+            <aside id="ceo-sidebar" class="ceo-sidebar">
+                <div class="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xl font-black text-[#0B5DAA] tracking-wider poppins leading-loose">RAHAAL</h3>
+                        <p class="text-[10px] text-slate-400 font-bold mt-1">لوحة الإدارة التنفيذية لرحال</p>
+                    </div>
+                    <button id="ceo-sidebar-close" onclick="closeCeoSidebar()" aria-label="إغلاق القائمة" class="ceo-sidebar-close-btn">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
                 </div>
                 <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
                     <button onclick="switchCeoTab('ceo-main', this)" class="ceo-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all bg-brand-primary text-white border-0 text-right cursor-pointer">
@@ -754,7 +775,7 @@
             </aside>
 
             <!-- Dashboard Main Content Panel -->
-            <div class="flex-1 p-8 space-y-8 overflow-y-auto max-h-screen">
+            <div class="ceo-content">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
                     <div>
                         <h1 class="text-2xl font-black">نظام إدارة العمليات الكبرى</h1>
@@ -923,26 +944,24 @@
                     </div>
                 </div>
 
-                <!-- SUBVIEW 7: Routes & Stops Management -->
+                <!-- SUBVIEW 7: Routes & Pickup Points Management -->
                 <div id="ceo-routes-view" class="ceo-subview hidden space-y-6">
                     <div class="flex justify-between items-center">
-                        <h3 class="font-bold text-lg">خطوط السير ونقاط التوقف</h3>
+                        <h3 class="font-bold text-lg">خطوط السير ونقاط الركوب</h3>
                         <button onclick="openAddRouteModal()" class="btn-gradient text-white px-4 py-2 text-xs flex items-center gap-1.5 rounded-xl hover:scale-105 active:scale-95 fast-transition shadow-sm font-bold border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> إنشاء خط سير جديد</button>
                     </div>
                     <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
                         <table class="w-full text-right text-xs">
                             <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
                                 <tr>
-                                    <th class="p-4">رقم واسم الخط</th>
-                                    <th class="p-4">الانطلاق ← الوجهة</th>
-                                    <th class="p-4">المسافة / المدة</th>
-                                    <th class="p-4">المشرف المعين</th>
+                                    <th class="p-4">اسم الخط</th>
+                                    <th class="p-4">نقاط الركوب المسجلة</th>
                                     <th class="p-4">الحالة</th>
                                     <th class="p-4 text-center">العمليات</th>
                                 </tr>
                             </thead>
                             <tbody id="ceo-routes-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="6" class="p-6 text-center text-slate-400">جاري تحميل خطوط السير...</td></tr>
+                                <tr><td colspan="4" class="p-6 text-center text-slate-400">جاري تحميل خطوط السير...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -958,17 +977,18 @@
                         <table class="w-full text-right text-xs">
                             <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
                                 <tr>
-                                    <th class="p-4">خط السير</th>
+                                    <th class="p-4">الخط</th>
+                                    <th class="p-4">الاتجاه</th>
                                     <th class="p-4">الحافلة</th>
                                     <th class="p-4">المشرف</th>
-                                    <th class="p-4">توقيت المغادرة</th>
-                                    <th class="p-4">السعر</th>
+                                    <th class="p-4">المغادرة ← الوصول</th>
+                                    <th class="p-4">السعة</th>
                                     <th class="p-4">الحالة</th>
                                     <th class="p-4 text-center">العمليات</th>
                                 </tr>
                             </thead>
                             <tbody id="ceo-trips-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="7" class="p-6 text-center text-slate-400">جاري تحميل جدول الرحلات...</td></tr>
+                                <tr><td colspan="8" class="p-6 text-center text-slate-400">جاري تحميل جدول الرحلات...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -989,6 +1009,7 @@
                                     <th class="p-4">المبلغ</th>
                                     <th class="p-4">الطريقة</th>
                                     <th class="p-4">رقم التحويل</th>
+                                    <th class="p-4">الإيصال</th>
                                     <th class="p-4">الحالة</th>
                                     <th class="p-4 text-center">الإجراء المالي</th>
                                 </tr>
@@ -1238,52 +1259,26 @@
         </div>
     </div>
 
-    <!-- 7. Add/Edit Route Modal (CEO) -->
+    <!-- 7. Add/Edit Route Modal (CEO) — route = logical container of pickup points -->
     <div id="add-route-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
-        <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-4 shadow-2xl">
-            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">إنشاء / تعديل خط سير</h3>
+        <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]" id="add-route-modal-title">إنشاء خط سير جديد</h3>
+            <p class="text-[11px] text-slate-400 -mt-2">خط السير هو حاوية منطقية لنقاط الركوب فقط — يُسجل الاسم ثم تُضاف نقاط الركوب تحته.</p>
             <form onsubmit="handleSaveRouteSubmit(event)" class="space-y-3">
                 <input type="hidden" id="route-edit-id" value="">
-                <div class="grid grid-cols-2 gap-3">
-                    <input type="text" id="route-number-input" required placeholder="رقم الخط (مثال: R-101)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                    <input type="text" id="route-name-input" required placeholder="اسم الخط (مثال: الفريال - الأهلية)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-[10px] text-slate-400 font-bold mb-1">محطة الانطلاق (Origin)</label>
-                        <select id="route-origin-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] text-slate-400 font-bold mb-1">محطة الوصول (Destination)</label>
-                        <select id="route-dest-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-[10px] text-slate-400 font-bold mb-1">المسافة (كم)</label>
-                        <input type="number" step="0.1" min="0.1" id="route-dist-input" placeholder="مثال: 15.5" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] text-slate-400 font-bold mb-1">المدة التقديرية (دقيقة)</label>
-                        <input type="number" min="1" id="route-dur-input" placeholder="مثال: 35" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                    </div>
-                </div>
                 <div>
-                    <label class="block text-[10px] text-slate-400 font-bold mb-1">مشرف الخط (اختياري)</label>
-                    <select id="route-sup-select" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                        <option value="">بدون مشرف</option>
-                    </select>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">اسم الخط</label>
+                    <input type="text" id="route-name-input" required placeholder="مثال: خط الفريال - الأهلية" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                 </div>
-                <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                    <div class="flex items-center justify-between">
-                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">نقاط التوقف (Waypoints)</label>
-                        <button type="button" onclick="addRouteWaypointRow()" class="btn-gradient text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 hover:scale-105 fast-transition border-0 cursor-pointer shadow-sm">
-                            <i class="fa-solid fa-plus"></i> إضافة نقطة توقف
-                        </button>
-                    </div>
-                    <div id="route-waypoints-container" class="space-y-2 max-h-48 overflow-y-auto pr-1">
-                        <!-- Populated dynamically via addRouteWaypointRow() -->
-                    </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">نقاط الركوب المسجلة</label>
+                    <button type="button" onclick="addRoutePickupRow()" class="btn-gradient text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 hover:scale-105 fast-transition border-0 cursor-pointer shadow-sm">
+                        <i class="fa-solid fa-plus"></i> إضافة نقطة ركوب
+                    </button>
+                </div>
+                <p class="text-[10px] text-slate-400">كل نقطة ركوب تنتمي لخط سير واحد فقط (الاسم مطلوب، الترتيب اختياري، لا إحداثيات).</p>
+                <div id="route-pickups-container" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    <!-- Populated dynamically via addRoutePickupRow() -->
                 </div>
                 <div class="flex gap-2 pt-2">
                     <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ خط السير</button>
@@ -1293,20 +1288,30 @@
         </div>
     </div>
 
-    <!-- 8. Manage Route Stops Modal (CEO) -->
+    <!-- 8. Manage Route Pickup Points Modal (CEO) -->
     <div id="route-stops-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
         <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
-                <h3 class="font-bold text-md text-brand-primary dark:text-[#6AB9FF]" id="route-stops-title">محطات وتوقفات الخط</h3>
+                <h3 class="font-bold text-md text-brand-primary dark:text-[#6AB9FF]" id="route-stops-title">نقاط ركوب الخط</h3>
                 <button onclick="closeModal('route-stops-modal')" class="text-slate-400 hover:text-slate-200 text-xl font-bold bg-transparent border-0 cursor-pointer">×</button>
             </div>
             
-            <!-- Add Stop Form -->
-            <form onsubmit="handleAddRouteStopSubmit(event)" class="flex gap-2 items-center bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl">
+            <!-- Add Pickup Point Form -->
+            <form onsubmit="handleAddRouteStopSubmit(event)" class="space-y-3 bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl">
                 <input type="hidden" id="current-stops-route-id" value="">
-                <select id="new-stop-station-select" required class="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
-                <input type="number" id="new-stop-order" required placeholder="الترتيب (1, 2...)" class="w-24 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                <button type="submit" class="btn-gradient text-white px-4 py-2 text-xs font-bold rounded-xl border-0 cursor-pointer whitespace-nowrap">إضافة محطة</button>
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">اسم نقطة الركوب</label>
+                    <input type="text" id="new-stop-point-name" required placeholder="مثال: الموقف الأمامي / بوابة الكلية" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">العنوان (اختياري)</label>
+                    <input type="text" id="new-stop-point-address" placeholder="مثال: شارع الجامعة، أمام البوابة 3" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">الترتيب (اختياري)</label>
+                    <input type="number" id="new-stop-order" min="1" placeholder="افتراضي: آخر الترتيب" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                </div>
+                <button type="submit" class="w-full btn-gradient text-white px-4 py-2 text-xs font-bold rounded-xl border-0 cursor-pointer">إضافة نقطة الركوب</button>
             </form>
 
             <div class="space-y-2" id="route-stops-list">
@@ -1315,14 +1320,28 @@
         </div>
     </div>
 
-    <!-- 9. Add Scheduled Trip Modal (CEO) -->
+    <!-- 9. Add Scheduled Trip Modal (CEO) — trip = route + direction + stops -->
     <div id="add-trip-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
         <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">جدولة رحلة جديدة</h3>
             <form onsubmit="handleCreateScheduledTripSubmit(event)" class="space-y-3">
                 <div>
                     <label class="block text-[10px] text-slate-400 font-bold mb-1">خط السير</label>
-                    <select id="trip-route-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                    <select id="trip-route-select" required onchange="onTripRouteChange()" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                    <p class="text-[10px] text-slate-400 mt-1">يتم جلب نقاط الركوب المسجلة تحت هذا الخط تلقائياً بعد الاختيار.</p>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">الاتجاه</label>
+                        <select id="trip-direction-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                            <option value="OUTBOUND">ذهاب (OUTBOUND)</option>
+                            <option value="RETURN">عودة (RETURN)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-bold mb-1">السعة (اختياري)</label>
+                        <input type="number" id="trip-capacity-input" min="1" max="150" placeholder="تلقائي حسب الباص" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                    </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -1334,25 +1353,21 @@
                         <select id="trip-supervisor-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-[10px] text-slate-400 font-bold mb-1">موعد المغادرة</label>
-                        <input type="datetime-local" id="trip-departure-input" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] text-slate-400 font-bold mb-1">موعد الوصول التقديري</label>
-                        <input type="datetime-local" id="trip-arrival-input" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                    </div>
+                <div class="flex items-center justify-between pt-1">
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">محطات الرحلة (الوقت والترتيب)</label>
+                    <button type="button" onclick="addTripStopRow()" class="btn-gradient text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 hover:scale-105 fast-transition border-0 cursor-pointer shadow-sm">
+                        <i class="fa-solid fa-plus"></i> إضافة محطة
+                    </button>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-[10px] text-slate-400 font-bold mb-1">سعر التذكرة (Fare Amount EGP)</label>
-                        <input type="number" step="0.5" id="trip-fare-input" value="50.00" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] text-slate-400 font-bold mb-1">السعة (اختياري)</label>
-                        <input type="number" id="trip-capacity-input" placeholder="تلقائي حسب الباص" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                    </div>
+                <p class="text-[10px] text-slate-400">موعد مغادرة الرحلة وموعد الوصول يُحتسبان من أول وآخر محطة — رتّب المحطات وحدّد وقت كل نقطة ركوب.</p>
+                <div id="trip-stops-container" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    <!-- Populated dynamically after route selection -->
+                </div>
+                <div>
+                    <label class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="trip-overbooking-input" class="w-4 h-4 accent-[#0B5DAA]">
+                        <span>السماح بالحجز الزائد (allow_overbooking)</span>
+                    </label>
                 </div>
                 <div class="flex gap-2 pt-2">
                     <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ الرحلة وجدولتها</button>
@@ -1362,24 +1377,24 @@
         </div>
     </div>
 
-    <!-- 9b. Manage Trip Pickup Points Modal (CEO) -->
+    <!-- 9b. Manage Trip Stops Modal (CEO) — view ordered stops, replace sequence -->
     <div id="manage-pickup-points-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
         <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center">
-                <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">إدارة نقاط التجمع للرحلة</h3>
+                <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">محطات الرحلة (Trip Stops)</h3>
                 <button type="button" onclick="closeModal('manage-pickup-points-modal')" class="bg-transparent border-0 cursor-pointer text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <p class="text-[11px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl">نقاط التجمع هي مواقع صعود الطلاب، ويختار منها الطالب نقطة الذهاب/العودة عند الاشتراك. يجب تعيينها لرحلات الخط حتى يتمكن الطلاب من إتمام الاشتراك.</p>
+            <p class="text-[11px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl">محطات الرحلة هي نقاط الركوب المسجلة تحت خط السير بالترتيب ووقت المغادرة من كل نقطة. وقت مغادرة الرحلة ووصولها يُحتسبان من أول وآخر محطة. لا يمكن حذف نقطة ركوب مستخدمة في حجوزات.</p>
             <p id="pickup-trip-context" class="text-[11px] text-slate-500 font-bold"></p>
 
             <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
                 <table class="w-full text-right text-xs">
                     <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
                         <tr>
-                            <th class="p-3">الاسم</th>
-                            <th class="p-3">العنوان</th>
                             <th class="p-3">الترتيب</th>
-                            <th class="p-3 text-center">حذف</th>
+                            <th class="p-3">نقطة الركوب</th>
+                            <th class="p-3">وقت المغادرة</th>
+                            <th class="p-3">العنوان</th>
                         </tr>
                     </thead>
                     <tbody id="pickup-points-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
@@ -1387,24 +1402,6 @@
                     </tbody>
                 </table>
             </div>
-
-            <form onsubmit="handleAddPickupPoint(event)" class="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-[10px] text-slate-400 font-bold mb-1">اسم نقطة التجمع</label>
-                        <input type="text" id="pickup-name-input" required placeholder="مثال: بوابة القاهرة 3" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] text-slate-400 font-bold mb-1">الترتيب (Sequence)</label>
-                        <input type="number" id="pickup-sequence-input" min="1" value="1" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-[10px] text-slate-400 font-bold mb-1">العنوان (اختياري)</label>
-                    <input type="text" id="pickup-address-input" placeholder="مثال: الجيزة، شارع الجامعة" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                </div>
-                <button type="submit" class="w-full btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> إضافة نقطة التجمع</button>
-            </form>
         </div>
     </div>
 
@@ -1426,7 +1423,7 @@
                 <input type="number" step="0.5" min="0.5" id="plan-price-input" required placeholder="السعر بالجنيه المصري (EGP)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                 <div>
                     <input type="number" id="plan-duration-input" min="1" max="730" required placeholder="مدة الباقة بالأيام (1 - 730)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                    <p id="plan-duration-hint" class="text-[10px] text-slate-400 mt-1">مدة حرة يحددها المدير التنفيذي: من 1 إلى 730 يوم. باقة DAILY مرنة: المدة فترة صلاحية والطالب يختار أيام مواصلات محددة.</p>
+                    <p id="plan-duration-hint" class="text-[10px] text-slate-400 mt-1">مدة حرة يحددها المدير التنفيذي: من 1 إلى 730 يوم. باقة DAILY ثابتة يوم واحد بالضبط.</p>
                 </div>
                 <div>
                     <label class="block text-[10px] text-slate-400 font-bold mb-1">أيام المواصلات أسبوعياً (days_per_week)</label>
@@ -1456,7 +1453,7 @@
                 <input type="number" step="0.5" min="0.5" id="edit-plan-price-input" required placeholder="السعر بالجنيه المصري (EGP)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                 <div>
                     <input type="number" id="edit-plan-duration-input" min="1" max="730" required placeholder="مدة الباقة بالأيام (1 - 730)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                    <p id="edit-plan-duration-hint" class="text-[10px] text-slate-400 mt-1">مدة حرة يحددها المدير التنفيذي: من 1 إلى 730 يوم. الباقة اليومية (DAILY) مرنة: المدة فترة صلاحية وليست يوماً واحداً.</p>
+                    <p id="edit-plan-duration-hint" class="text-[10px] text-slate-400 mt-1">مدة حرة يحددها المدير التنفيذي: من 1 إلى 730 يوم. الباقة اليومية (DAILY) ثابتة يوم واحد بالضبط.</p>
                 </div>
                 <div>
                     <input type="number" id="edit-plan-days-per-week-input" min="1" max="7" required placeholder="أيام النقل في الأسبوع (1 - 7)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
@@ -1561,19 +1558,25 @@
         </div>
     </div>
 
-    <!-- 13. Submit Payment Proof Modal (Student) -->
+    <!-- 13. Submit Payment Proof Modal (Student) — reference + receipt image -->
     <div id="submit-payment-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
         <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
             <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">إرسال إثبات التحويل المالي</h3>
+            <p class="text-[11px] text-slate-400 -mt-2">الدفع الرقمي يتطلب رقم مرجع العملية + صورة الإيصال معاً قبل اعتماد الإدارة.</p>
             <form onsubmit="handleSubmitPaymentProof(event)" class="space-y-3">
                 <input type="hidden" id="submit-pay-id" value="">
                 <div>
                     <label class="block text-xs font-bold text-slate-400 mb-1">رقم مرجع التحويل (Transaction Reference)</label>
-                    <input type="text" id="submit-pay-ref" required placeholder="مثال: IP-987654321 أو رقم المحفظة" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                    <input type="text" id="submit-pay-ref" placeholder="مثال: IP-987654321 أو رقم المحفظة" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-400 mb-1">ملاحظات التحويل (اختياري)</label>
                     <textarea id="submit-pay-notes" rows="2" placeholder="تم التحويل من رقم 010xxxxxxxx" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs focus:outline-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">صورة إيصال التحويل (JPG / PNG / WEBP — بحد أقصى 5 ميجابايت)</label>
+                    <input type="file" id="submit-pay-receipt-file" accept="image/jpeg,image/png,image/webp" onchange="handleReceiptFileSelect(this)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs focus:outline-none file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0B5DAA] file:text-white hover:file:bg-[#6AB9FF] file:cursor-pointer">
+                    <p class="text-[10px] text-slate-400 mt-1">يُخزّن الإيصال بشكل خاص — يطّلع عليه الطالب صاحبه والإدارة فقط عبر نقطة النهاية المصرّح بها.</p>
                 </div>
                 <div class="flex gap-2 pt-2">
                     <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">إرسال للمراجعة</button>
@@ -1583,35 +1586,39 @@
         </div>
     </div>
 
+    <!-- 13c. Receipt Image Viewer Modal -->
+    <div id="receipt-view-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+                <h3 class="font-bold text-md text-brand-primary dark:text-[#6AB9FF]" id="receipt-view-title">صورة إيصال الدفع</h3>
+                <button onclick="closeModal('receipt-view-modal')" class="text-slate-400 hover:text-slate-200 text-xl font-bold bg-transparent border-0 cursor-pointer">×</button>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-slate-900 rounded-2xl flex items-center justify-center border border-slate-200 dark:border-slate-800 overflow-hidden min-h-[200px] p-2">
+                <img id="receipt-view-img" src="" alt="صورة إيصال الدفع" class="max-w-full max-h-[60vh] object-contain rounded-xl hidden">
+                <p id="receipt-view-fallback" class="text-xs text-slate-400">جاري تحميل صورة الإيصال...</p>
+            </div>
+        </div>
+    </div>
 
-    <!-- 13b. Select Daily Transportation Modal (Student, TOMORROW only) -->
+
+    <!-- 13b. Select Daily Transportation Modal (Student) -->
     <div id="select-transportation-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
         <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
-            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">حجز مواصلات الغد</h3>
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]" id="sel-trans-title">حجز مواصلات</h3>
             <p class="text-xs text-slate-400" id="sel-trans-trip-context">--</p>
             <form onsubmit="handleSelectTransportationSubmit(event)" class="space-y-3">
+                <input type="hidden" id="sel-trans-existing-id" value="">
                 <div>
                     <label class="block text-[10px] text-slate-400 font-bold mb-1">تاريخ المواصلات</label>
-                    <input type="date" id="sel-trans-service-date" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                    <p class="text-[10px] text-slate-400 mt-1">اختر أي يوم داخل فترة صلاحية اشتراكك — التواريخ الماضية مرفوضة.</p>
+                    <input type="date" id="sel-trans-service-date" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                    <p class="text-[10px] text-slate-400 mt-1">الافتراضي: الغد. يُقبل أي تاريخ اليوم أو بعده داخل فترة صلاحية اشتراكك النشط.</p>
                 </div>
                 <div>
-                    <label class="block text-[10px] text-slate-400 font-bold mb-1">الاتجاه المطلوب</label>
-                    <select id="sel-trans-direction-mode" onchange="toggleReturnSelectorForMode()" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                        <option value="BOTH">ذهاب وعودة (BOTH)</option>
-                        <option value="OUTBOUND_ONLY">ذهاب فقط (OUTBOUND_ONLY)</option>
-                        <option value="RETURN_ONLY">عودة فقط (RETURN_ONLY)</option>
-                    </select>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">نقطة <span id="sel-trans-point-label">الركوب</span></label>
+                    <select id="sel-trans-point" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                    <p id="sel-trans-dest-hint" class="text-[10px] text-slate-400 mt-1"></p>
                 </div>
-                <div>
-                    <label class="block text-[10px] text-slate-400 font-bold mb-1">نقطة تجمع الذهاب</label>
-                    <select id="sel-trans-outbound" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
-                </div>
-                <div id="sel-trans-return-container">
-                    <label class="block text-[10px] text-slate-400 font-bold mb-1">نقطة تجمع العودة</label>
-                    <select id="sel-trans-return" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
-                </div>
-                <p class="text-[10px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl">الذهاب والعودة في نفس اليوم يحسبان يوماً واحداً من رصيدك الأسبوعي.</p>
+                <p class="text-[10px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl">حد الحجز: حجز واحد لرحلة الذهاب + حجز واحد لرحلة العودة في نفس اليوم. الذهاب والعودة في نفس اليوم يحسبان يوماً واحداً من رصيدك الأسبوعي.</p>
                 <div class="flex gap-2 pt-2">
                     <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">تأكيد الحجز</button>
                     <button type="button" onclick="closeModal('select-transportation-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
