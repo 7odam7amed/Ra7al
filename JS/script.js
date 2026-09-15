@@ -11,6 +11,8 @@ let activeSubscriptionQR = null;
 let currentSupervisorTripId = null;
 let selectedStudentTrip = null;
 let buySubRoutesCache = new Map();
+let buySubPlansCache = new Map();
+let studentTomorrowTripsCache = [];
 let currentPickupTripId = null;
 let displaySubscriptionIdCache = null;
 // Bus image object URLs created during this session (revoked on re-render)
@@ -26,6 +28,8 @@ const PLAN_TYPE_LABELS = {
 
 // Plan duration bounds (SUBSCRIPTIONS.md: 1–730 days; DAILY fixed to exactly 1)
 const MAX_PLAN_DURATION_DAYS = 730;
+// Weekly usage-day allowance bounds (days_per_week: 1–7 distinct usage days)
+const MAX_PLAN_DAYS_PER_WEEK = 7;
 
 // Rejected phone helpers (client-side convenience cache for re-registration blocking)
 function getRejectedPhoneSet() {
@@ -333,7 +337,7 @@ function closeModal(modalId) {
 }
 
 // ============================================================
-// AUTHENTICATION FLOW (LOGIN / REGISTER / OTP)
+// AUTHENTICATION FLOW (LOGIN / REGISTER — phone + password only, no OTP)
 // ============================================================
 
 /**
@@ -532,7 +536,7 @@ function switchStudentTab(tabId, btnElement) {
     if (tabId === 'sub-card') {
         loadStudentDashboard();
     } else if (tabId === 'trips-booking') {
-        loadAvailableSubscriptionPlansForStudent();
+        loadStudentAvailableTrips();
         loadMyReservations();
     } else if (tabId === 'payments') {
         loadMyPayments();
@@ -571,20 +575,21 @@ async function loadStudentDashboard() {
         if (displaySub) {
             displaySubscriptionIdCache = displaySub.id;
             setElementText('sub-stat-plan', displaySub.plan?.name || PLAN_TYPE_LABELS[displaySub.plan_type] || displaySub.plan_type || 'باقة نقل');
+            setElementText('sub-stat-duration', displaySub.duration_days != null ? `${displaySub.duration_days} يوم` : '--');
+            setElementText('sub-stat-days-per-week', displaySub.days_per_week != null ? `${displaySub.days_per_week} يوم/أسبوع` : '--');
             setElementText('sub-stat-rides', `${displaySub.used_qr_usages ?? displaySub.boarding_count ?? 0} رحلة`);
-            setElementText('sub-stat-outbound', displaySub.outbound_pickup_point?.name || 'لم تُحدد نقطة تجمع');
-            setElementText('sub-stat-return', displaySub.return_pickup_point?.name || (displaySub.return_pickup_mode === 'SAME_AS_OUTBOUND' ? 'نفس محطة الذهاب' : '--'));
 
-            // Authoritative QR accounting from SubscriptionDetailResponse (QR_AND_BOARDING.md §5).
+            // Weekly usage-day accounting from SubscriptionDetailResponse (QR_AND_BOARDING.md §5).
+            // usage_days_this_week counts DISTINCT calendar DAYS (outbound + return same day = ONE day).
             // Never compute allowances client-side — display the API fields only.
-            const usageLine = document.getElementById('sub-stat-qr-usage');
+            const usageLine = document.getElementById('sub-stat-week-usage');
             if (usageLine) {
-                if (displaySub.max_qr_usages !== null && displaySub.max_qr_usages !== undefined) {
-                    usageLine.textContent = `المتبقي: ${displaySub.remaining_qr_usages ?? 0} / ${displaySub.max_qr_usages} • اليوم: ${displaySub.qr_usages_today ?? 0} / 2`;
+                if (displaySub.usage_days_this_week != null || displaySub.remaining_usage_days_this_week != null) {
+                    usageLine.textContent = `${displaySub.usage_days_this_week ?? 0} / ${displaySub.days_per_week ?? '--'} يوم`;
                     usageLine.classList.remove('hidden');
                 } else {
                     // Deleted-plan edge case: fall back to dates + used count only.
-                    usageLine.textContent = `مستخدم: ${displaySub.used_qr_usages ?? 0}`;
+                    usageLine.textContent = `المستخدم إجمالي: ${displaySub.used_qr_usages ?? 0}`;
                     usageLine.classList.remove('hidden');
                 }
             }
@@ -599,7 +604,7 @@ async function loadStudentDashboard() {
         } else {
             renderEmptyQRCode('لا يوجد اشتراك نشط حالياً. اضغط على "شراء اشتراك جديد" للبدء.');
             setQrStatusBadge(null);
-            setElementText('student-qr-route-name', 'خط السير: --');
+            setElementText('student-qr-route-name', 'باقة النقل الجامعي');
             setElementText('student-qr-validity', 'الصلاحية: -- إلى --');
         }
     } catch (e) {
@@ -627,7 +632,7 @@ async function loadStudentQRCode(subId) {
                 correctLevel: QRCode.CorrectLevel.H
             });
 
-            setElementText('student-qr-route-name', `خط السير: ${qrData.route_name || 'الخط المعتمد'}`);
+            setElementText('student-qr-route-name', 'باقة النقل الجامعي');
             setElementText('student-qr-validity', `الصلاحية: من ${qrData.valid_from || '--'} إلى ${qrData.valid_until || '--'}`);
             setQrStatusBadge(qrData.status || 'ACTIVE');
         } else {
@@ -683,9 +688,26 @@ function renderNonActiveSubscriptionState(sub) {
     }
     renderEmptyQRCode(msg);
     setQrStatusBadge(status);
-    const routeName = sub?.route?.name || (sub?.route_id ? `خط #${sub.route_id}` : '--');
-    setElementText('student-qr-route-name', `خط السير: ${routeName}`);
+    setElementText('student-qr-route-name', 'باقة النقل الجامعي');
     setElementText('student-qr-validity', (sub?.start_date && sub?.end_date) ? `الصلاحية: من ${sub.start_date} إلى ${sub.end_date}` : 'الصلاحية: -- إلى --');
+}
+
+// التسمية الديناميكية لتاريخ خدمة الغد (التواريخ دائماً كما يعيدها الخادم — لا حسابات محلية للسماحية).
+function getTomorrowLabel() {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function getTomorrowDateISO() {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+}
+
+function setTomorrowLabels() {
+    const el = document.getElementById('student-tomorrow-label');
+    if (el) el.textContent = getTomorrowLabel();
 }
 
 async function loadStudentBoardingHistory(subId) {
@@ -729,78 +751,145 @@ async function loadStudentBoardingHistory(subId) {
     }
 }
 
-async function loadAvailableSubscriptionPlansForStudent() {
-    const tbody = document.getElementById('student-available-plans-tbody');
-    const status = document.getElementById('student-subscription-plans-status');
+async function loadStudentAvailableTrips() {
+    const tbody = document.getElementById('student-available-trips-tbody');
+    const status = document.getElementById('student-available-trips-status');
     if (!tbody) return;
     if (status) status.classList.add('hidden');
-    tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري تحميل الباقات...</td></tr>';
+    setTomorrowLabels();
+    tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري تحميل رحلات الغد...</td></tr>';
 
     try {
-        // جلب الباقات المتاحة (subscription plans) التي أضافها الـ CEO
-        const res = await window.subscriptionPlansApi.listAvailable();
-        const plans = Array.isArray(res) ? res : (res?.items || res?.data || []);
+        const res = await window.reservationsApi.listAvailableTrips({ page_size: 100 });
+        const trips = Array.isArray(res) ? res : (res?.items || []);
+        studentTomorrowTripsCache = trips;
 
-        if (plans.length > 0) {
+        if (trips.length > 0) {
             tbody.innerHTML = '';
-            plans.forEach(p => {
-                const planType = PLAN_TYPE_LABELS[p.plan_type] || p.plan_type || '--';
-                const duration = p.duration_days ? `${p.duration_days} يوم` : '--';
-                const price = p.price ? `${parseFloat(p.price).toLocaleString('ar-EG')} ${p.currency || 'EGP'}` : '--';
+            trips.forEach(t => {
+                const dep = t.departure_time ? new Date(t.departure_time).toLocaleString('ar-EG', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : '--';
+                const svcDate = t.departure_time ? new Date(t.departure_time).toLocaleDateString('ar-EG', { weekday: 'long', month: 'long', day: 'numeric' }) : '--';
+                const routeName = t.route?.name || `خط #${t.route_id}`;
+                const available = t.available_seats;
+                const seatsBadge = available > 0
+                    ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-500">متاح ${available}</span>`
+                    : `<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-500">ممتلئ</span>`;
+                const points = Array.isArray(t.pickup_points) ? t.pickup_points : [];
+                const bookBtn = points.length
+                    ? `<button onclick="openSelectTransportationModal(${Number(t.id)})" class="btn-gradient text-white text-[11px] font-black px-4 py-1.5 rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer shadow-sm">اختر الرحلة</button>`
+                    : `<span class="text-[10px] text-slate-400">لا توجد نقاط تجمع معرفة</span>`;
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
-                        <td class="p-4">
-                            <p class="font-black text-slate-800 dark:text-white">${p.name}</p>
-                        </td>
-                        <td class="p-4">
-                            <span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-blue-500/15 text-blue-500">${planType}</span>
-                        </td>
-                        <td class="p-4 font-bold text-slate-600 dark:text-slate-300">${duration}</td>
-                        <td class="p-4 font-mono font-bold text-brand-primary dark:text-brand-secondary">${price}</td>
-                        <td class="p-4 text-center">
-                            <button onclick="openBuySubscriptionModal(null, ${Number(p.id)})" class="btn-gradient text-white text-[11px] font-black px-4 py-1.5 rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer shadow-sm">
-                                اشترك الآن
-                            </button>
-                        </td>
+                        <td class="p-4 font-bold text-slate-800 dark:text-white">${routeName}</td>
+                        <td class="p-4 font-mono text-slate-500">${svcDate}</td>
+                        <td class="p-4 font-mono text-slate-500">${dep}</td>
+                        <td class="p-4">${seatsBadge}</td>
+                        <td class="p-4 text-center">${bookBtn}</td>
                     </tr>
                 `;
             });
-            if (status) {
-                status.textContent = `تم تحميل ${plans.length} باقة متاحة للاشتراك.`;
-                status.className = 'px-5 pb-4 text-[11px] font-bold text-emerald-500';
-            }
         } else {
-            tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400 font-bold">لا توجد باقات اشتراك متاحة حالياً. يرجى التواصل مع الإدارة.</td></tr>';
-            if (status) {
-                status.textContent = 'لم يُرجع الخادم أي باقات نشطة حاليًا.';
-                status.className = 'px-5 pb-4 text-[11px] font-bold text-amber-500';
-            }
+            tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400 font-bold">لا توجد رحلات متاحة للغد حالياً. يرجى المحاولة لاحقاً.</td></tr>';
         }
     } catch (e) {
-        const message = e?.message || 'حدث خطأ أثناء تحميل الباقات. حاول التحديث مرة أخرى.';
-        tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل الباقات. راجع الرسالة أدناه ثم حاول التحديث.</td></tr>';
-        if (status) {
-            status.textContent = `تعذر تحميل الباقات: ${message}`;
-            status.className = 'px-5 pb-4 text-[11px] font-bold text-rose-500';
-        }
+        const message = e?.message || 'حدث خطأ أثناء تحميل رحلات الغد.';
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل رحلات الغد: ${message}</td></tr>`;
     }
 }
 
-async function bookSingleTrip(tripId) {
-    if (!confirm('هل ترغب بتأكيد حجز مقعدك في هذه الرحلة؟')) return;
+// فتح مودال اختيار المواصلات: نقاط الذهاب/العودة من نقاط الرحلة نفسها فقط.
+function openSelectTransportationModal(tripId) {
+    const trip = (studentTomorrowTripsCache || []).find(t => Number(t.id) === Number(tripId));
+    if (!trip) {
+        showToast('تعذر العثور على بيانات الرحلة. حدّث القائمة وحاول مجدداً.', 'error');
+        return;
+    }
+
+    const points = Array.isArray(trip.pickup_points) ? trip.pickup_points : [];
+    if (!points.length) {
+        showToast('لا توجد نقاط تجمع معرفة لهذه الرحلة. اطلب من الإدارة تعيينها أولاً.', 'warning');
+        return;
+    }
+
+    const optionsHtml = points
+        .map(p => `<option value="${Number(p.id)}">${p.name || `نقطة #${p.id}`}</option>`)
+        .join('');
+
+    const routeName = trip.route?.name || `رحلة #${trip.id}`;
+    const dep = trip.departure_time ? new Date(trip.departure_time).toLocaleString('ar-EG', { weekday: 'long', hour: '2-digit', minute: '2-digit' }) : '--';
+
+    const modal = document.getElementById('select-transportation-modal');
+    if (!modal) return;
+    modal.dataset.tripId = String(Number(trip.id));
+    setElementText('sel-trans-trip-context', `${routeName} • ${dep} • ${getTomorrowLabel()}`);
+
+    const outSel = document.getElementById('sel-trans-outbound');
+    const retSel = document.getElementById('sel-trans-return');
+    if (outSel) outSel.innerHTML = optionsHtml;
+    if (retSel) retSel.innerHTML = optionsHtml;
+
+    const modeSel = document.getElementById('sel-trans-direction-mode');
+    if (modeSel) modeSel.value = 'BOTH';
+    toggleReturnSelectorForMode();
+
+    modal.classList.remove('hidden');
+}
+
+function toggleReturnSelectorForMode() {
+    const mode = document.getElementById('sel-trans-direction-mode')?.value || 'BOTH';
+    const container = document.getElementById('sel-trans-return-container');
+    if (container) {
+        container.classList.toggle('hidden', mode === 'OUTBOUND_ONLY');
+    }
+}
+
+async function handleSelectTransportationSubmit(e) {
+    e.preventDefault();
+
+    const modal = document.getElementById('select-transportation-modal');
+    if (!modal) return;
+    const tripId = Number(modal.dataset.tripId);
+    const submitBtn = e.submitter || modal.querySelector('button[type="submit"]');
+    const mode = document.getElementById('sel-trans-direction-mode').value;
+    const outVal = document.getElementById('sel-trans-outbound').value;
+    const retVal = document.getElementById('sel-trans-return')?.value;
+    const outboundId = outVal ? Number(outVal) : null;
+    const returnId = retVal ? Number(retVal) : null;
+
+    // متطلبات نقاط الاتجاه (نفس قواعد الخادم — ReservationCreateRequest):
+    if (!Number.isInteger(tripId) || tripId <= 0) { showToast('رقم الرحلة غير صالح.', 'error'); return; }
+    if (mode !== 'RETURN_ONLY' && (!Number.isInteger(outboundId) || outboundId <= 0)) {
+        showToast('يرجى اختيار نقطة تجمع الذهاب.', 'error'); return;
+    }
+    if (mode !== 'OUTBOUND_ONLY' && (!Number.isInteger(returnId) || returnId <= 0)) {
+        showToast('يرجى اختيار نقطة تجمع العودة.', 'error'); return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.dataset.origText = submitBtn.innerText;
+        submitBtn.innerText = '⏳ جاري تأكيد الحجز...';
+    }
 
     try {
-        const reservation = await window.reservationsApi.book(tripId);
-        // A reservation does NOT auto-create a payment (RESERVATIONS.md §7):
-        // the student must submit one via POST /payments.
-        showToast('تم حجز مقعدك بنجاح! أكمل الدفع لتفعيل الحجز.', 'success');
-        if (reservation?.id) {
-            openCreateReservationPaymentModal(reservation.id, reservation.trip?.fare_amount || '50.00', 'EGP');
-        }
-        loadAvailableSubscriptionPlansForStudent();
+        // ReservationCreateRequest: trip + points + direction ONLY.
+        // The service date is decided by the backend (tomorrow) — never sent.
+        await window.reservationsApi.book({
+            trip_id: tripId,
+            outbound_pickup_point_id: outboundId,
+            return_pickup_point_id: returnId,
+            direction_mode: mode
+        });
+        showToast('تم تأكيد مواصلات الغد بنجاح! اعرض كود QR للمشرف يوم الرحلة.', 'success');
+        closeModal('select-transportation-modal');
         loadMyReservations();
-    } catch (e) {
-        console.error('Book trip error:', e);
+    } catch (err) {
+        console.error('Create transportation selection error:', err);
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = submitBtn.dataset.origText || 'تأكيد الحجز';
+        }
     }
 }
 
@@ -817,20 +906,24 @@ async function loadMyReservations() {
             tbody.innerHTML = '';
             items.forEach(r => {
                 const isConfirmed = r.status === 'CONFIRMED';
-                const bookedAt = new Date(r.booked_at).toLocaleDateString('ar-EG');
+                // تاريخ الخدمة (الغد) هو المعيار — وليس تاريخ إنشاء الحجز.
+                const svcDate = r.service_date ? new Date(`${r.service_date}T00:00:00`).toLocaleDateString('ar-EG') : '--';
+                const isTomorrow = r.service_date === getTomorrowDateISO();
                 const tripInfo = r.trip?.route?.name ? `${r.trip.route.name}` : `رحلة #${r.trip_id}`;
+                const dirLabel = r.direction_mode === 'OUTBOUND_ONLY' ? 'ذهاب فقط'
+                    : r.direction_mode === 'RETURN_ONLY' ? 'عودة فقط' : 'ذهاب وعودة';
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
                         <td class="p-4 font-mono font-bold">#${r.id}</td>
-                        <td class="p-4 font-bold text-slate-800 dark:text-white">${tripInfo}</td>
-                        <td class="p-4 font-mono text-slate-400">${bookedAt}</td>
+                        <td class="p-4 font-bold text-slate-800 dark:text-white">${tripInfo}<span class="block text-[10px] text-slate-400">${dirLabel}</span></td>
+                        <td class="p-4 font-mono text-slate-400">${svcDate}${isTomorrow ? '<span class="block text-[10px] font-black text-emerald-500">الغد</span>' : ''}</td>
                         <td class="p-4">
                             <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${isConfirmed ? 'bg-emerald-500/15 text-emerald-500' : 'bg-rose-500/15 text-rose-500'}">
                                 ${isConfirmed ? 'مؤكد' : 'ملغي'}
                             </span>
                         </td>
                         <td class="p-4 text-center">
-                            ${isConfirmed ? `
+                            ${isConfirmed && isTomorrow ? `
                                 <button onclick="cancelMyReservation(${r.id})" class="text-rose-500 hover:text-rose-600 font-black text-xs hover:underline bg-transparent border-0 cursor-pointer">
                                     إلغاء الحجز
                                 </button>
@@ -854,7 +947,7 @@ async function cancelMyReservation(resId) {
         await window.reservationsApi.cancel(resId);
         showToast('تم إلغاء الحجز بنجاح وتحرير المقعد.', 'success');
         loadMyReservations();
-        loadAvailableSubscriptionPlansForStudent();
+        loadStudentAvailableTrips();
     } catch (e) {
         console.error('Cancel reservation error:', e);
     }
@@ -924,14 +1017,10 @@ function openSubmitPaymentModal(paymentId) {
     if (modal) modal.classList.remove('hidden');
 }
 
-/**
- * Payment submit (student, PENDING only): PATCH /payments/{id}/submit.
- * Digital methods require a transaction reference (PAYMENTS.md §4).
- */
 async function handleSubmitPaymentProof(e) {
     e.preventDefault();
     const paymentId = document.getElementById('submit-pay-id').value;
-    const ref = document.getElementById('submit-pay-ref').value.trim();
+    const ref = document.getElementById('submit-pay-ref').value;
     const notes = document.getElementById('submit-pay-notes').value;
 
     try {
@@ -944,267 +1033,90 @@ async function handleSubmitPaymentProof(e) {
     }
 }
 
-/**
- * Student creates a payment attempt for their own CONFIRMED reservation
- * (POST /payments — STUDENT only, PAYMENTS.md).
- */
-function openCreateReservationPaymentModal(reservationId, amount, currency) {
-    const idInput = document.getElementById('create-pay-reservation-id');
-    const amountText = document.getElementById('create-pay-amount-text');
-    const modal = document.getElementById('create-reservation-payment-modal');
-    if (!modal || !idInput) return;
-
-    idInput.value = reservationId;
-    if (amountText) amountText.innerText = `${amount} ${currency || 'EGP'}`;
-    document.getElementById('create-pay-method').value = 'CASH';
-    document.getElementById('create-pay-ref').value = '';
-    document.getElementById('create-pay-notes').value = '';
-    modal.classList.remove('hidden');
-}
-
-function onCreateReservationPayMethodChange() {
-    // Digital methods carry a reference; CASH does not need one
-    const method = document.getElementById('create-pay-method')?.value;
-    const refInput = document.getElementById('create-pay-ref');
-    if (refInput) refInput.required = (method === 'VODAFONE_CASH' || method === 'INSTAPAY');
-}
-
-async function handleCreateReservationPaymentSubmit(e) {
-    e.preventDefault();
-    const reservationId = parseInt(document.getElementById('create-pay-reservation-id').value);
-    const method = document.getElementById('create-pay-method').value;
-    const ref = (document.getElementById('create-pay-ref').value || '').trim() || null;
-    const notes = (document.getElementById('create-pay-notes').value || '').trim() || null;
-
-    if ((method === 'VODAFONE_CASH' || method === 'INSTAPAY') && !ref) {
-        showToast('الدفع الرقمي يتطلب رقم مرجع التحويل.', 'error');
-        return;
-    }
-
-    try {
-        await window.paymentsApi.create({
-            reservation_id: reservationId,
-            method: method,
-            transaction_reference: ref,
-            notes: notes
-        });
-        showToast('تم إنشاء عملية الدفع! بانتظار تأكيد الإدارة.', 'success');
-        closeModal('create-reservation-payment-modal');
-        loadMyPayments();
-        loadMyReservations();
-    } catch (err) {
-        console.error('Create reservation payment error:', err);
-    }
-}
-
-/**
- * Buy Subscription Workflow
- */
-// نقاط التجمع مرتبطة برحلة (per-trip). نجمعها من الرحلات المتاحة على الخط إن أرجعها الـBackend.
-function collectPickupPointsFromTrips(trips) {
-    const seen = new Set();
-    const points = [];
-    (Array.isArray(trips) ? trips : []).forEach(trip => {
-        (Array.isArray(trip?.pickup_points) ? trip.pickup_points : []).forEach(point => {
-            const id = Number(point?.id);
-            if (point && Number.isInteger(id) && id > 0 && !seen.has(id)) {
-                seen.add(id);
-                points.push(point);
-            }
-        });
-    });
-    return points;
-}
-
-// يعرض خط السير الحقيقي (الانطلاق/التوقفات/الوصول) من RouteResponse.
-function renderRouteItinerary(route) {
-    const box = document.getElementById('buy-sub-trip-context');
+// عرض تفاصيل الباقة المختارة (القيم الحقيقية من الخادم — لا افتراضات WEEKLY=7/MONTHLY=30/TERM=90).
+function renderBuySubPlanDetails() {
+    const box = document.getElementById('buy-sub-plan-details');
     if (!box) return;
-    if (!route) {
+    const planSelect = document.getElementById('buy-sub-plan-select');
+    const plan = buySubPlansCache.get(Number(planSelect?.value));
+    if (!plan) {
         box.classList.add('hidden');
         box.innerHTML = '';
         return;
     }
-    const origin = route.origin_station?.name || '—';
-    const destination = route.destination_station?.name || '—';
-    const stops = Array.isArray(route.stops)
-        ? route.stops.slice()
-            .sort((a, b) => (a.stop_order || 0) - (b.stop_order || 0))
-            .map(s => s.station?.name)
-            .filter(Boolean)
-        : [];
-    const stopsText = stops.length ? stops.join('، ') : 'لا توجد توقفات وسطية';
-    const metaBits = [
-        route.route_number ? `رقم الخط: ${route.route_number}` : '',
-        route.distance_km ? `المسافة: ${route.distance_km} كم` : '',
-        route.estimated_duration_minutes ? `المدة التقديرية: ${route.estimated_duration_minutes} دقيقة` : ''
-    ].filter(Boolean);
-
+    const typeLabel = PLAN_TYPE_LABELS[plan.plan_type] || plan.plan_type || '';
+    const duration = plan.duration_days != null ? `${plan.duration_days} يوم اشتراك` : '--';
+    const dpw = plan.days_per_week != null ? `${plan.days_per_week} أيام مواصلات/أسبوع` : '--';
+    const price = plan.price != null ? `${plan.price} ${plan.currency || 'EGP'}` : '--';
     box.classList.remove('hidden');
     box.innerHTML = `
-        <div class="font-black text-brand-primary mb-1"><i class="fa-solid fa-route ml-1"></i> خط السير: ${route.name || '—'}</div>
-        <div class="font-bold text-slate-700 dark:text-slate-200">الانطلاق: ${origin} • الوصول: ${destination}</div>
-        <div class="mt-0.5">التوقفات: ${stopsText}</div>
-        ${metaBits.length ? `<div class="text-[10px] text-slate-400 mt-1">${metaBits.join(' • ')}</div>` : ''}
+        <div><i class="fa-solid fa-id-card ml-1"></i> ${typeLabel} — ${duration}</div>
+        <div><i class="fa-solid fa-bus ml-1"></i> ${dpw}</div>
+        <div><i class="fa-solid fa-tag ml-1"></i> ${price}</div>
     `;
 }
 
-function populateBuySubscriptionPickupPoints(pickupPoints, tripCount = 0, errored = false) {
-    const outboundSelect = document.getElementById('buy-sub-outbound-pickup');
-    const returnSelect = document.getElementById('buy-sub-return-pickup');
-    const validPickupPoints = (Array.isArray(pickupPoints) ? pickupPoints : [])
-        .filter(point => point && Number.isInteger(Number(point.id)) && Number(point.id) > 0)
-        .map(point => ({
-            id: Number(point.id),
-            label: `${point.name || 'نقطة تجمع'}${point.address ? ` — ${point.address}` : ''}`
-        }));
+function onBuySubPlanChange() {
+    renderBuySubPlanDetails();
+    toggleRefFieldHint();
+}
 
-    let emptyMessage;
-    if (errored) {
-        emptyMessage = 'تعذر تحميل نقاط التجمع لهذا الخط. حاول مرة أخرى.';
-    } else if (!tripCount) {
-        emptyMessage = 'لا توجد رحلات متاحة على هذا الخط حالياً.';
-    } else {
-        emptyMessage = 'لا توجد نقاط تجمع متاحة لهذا الخط. يجب أن تعيّن الإدارة نقاط التجمع لرحلات هذا الخط.';
+// إظهار/إخفاء شرط المرجع حسب طريقة الدفع: الرقمي يوجبه، النقد لا يطلبه.
+function toggleRefFieldHint() {
+    const method = document.getElementById('buy-sub-pay-method')?.value;
+    const label = document.getElementById('buy-sub-ref-label');
+    const hint = document.getElementById('buy-sub-ref-hint');
+    const refInput = document.getElementById('buy-sub-ref');
+    const isDigital = method === 'VODAFONE_CASH' || method === 'INSTAPAY';
+    if (label) label.textContent = isDigital ? 'رقم مرجع التحويل (مطلوب)' : 'رقم مرجع التحويل (اختياري للدفع النقدي)';
+    if (hint) hint.classList.toggle('hidden', !isDigital);
+    if (refInput) {
+        if (isDigital) refInput.setAttribute('required', '');
+        else refInput.removeAttribute('required');
     }
+}
 
-    const optionsHtml = validPickupPoints.length
-        ? validPickupPoints.map(point => `<option value="${point.id}">${point.label}</option>`).join('')
-        : `<option value="">${emptyMessage}</option>`;
-
-    [outboundSelect, returnSelect].forEach(select => {
-        if (select) {
-            select.innerHTML = optionsHtml;
-            select.disabled = validPickupPoints.length === 0;
-            select.dataset.validPickupPoints = validPickupPoints.length ? 'true' : 'false';
-        }
-    });
-    return validPickupPoints.length > 0;
+function onBuySubPayMethodChange() {
+    toggleRefFieldHint();
 }
 
 async function openBuySubscriptionModal(selectedTripId = null, preselectedPlanId = null) {
     const modal = document.getElementById('buy-subscription-modal');
     if (!modal) return;
 
-    const routeSelect = document.getElementById('buy-sub-route-select');
     const planSelect = document.getElementById('buy-sub-plan-select');
-    const outboundSelect = document.getElementById('buy-sub-outbound-pickup');
-    const returnSelect = document.getElementById('buy-sub-return-pickup');
-    const returnMode = document.getElementById('buy-sub-return-mode');
     const startDate = document.getElementById('buy-sub-start-date');
+    const refInput = document.getElementById('buy-sub-ref');
+    const payMethod = document.getElementById('buy-sub-pay-method');
 
-    // إعادة تعيين الحالة المرتبطة بأي فتح سابق
-    selectedStudentTrip = null;
-    buySubRoutesCache = new Map();
-    renderRouteItinerary(null);
-    if (returnMode) returnMode.value = 'SAME_AS_OUTBOUND';
-    toggleReturnPickupSelector();
-    [outboundSelect, returnSelect].forEach(s => {
-        if (s) { s.innerHTML = '<option value="">اختر خط السير أولاً</option>'; s.disabled = true; s.dataset.validPickupPoints = 'false'; }
-    });
-
-    // تاريخ البدء الافتراضي: الغد (الـAPI يرفض أي تاريخ في الماضي)
+    // تاريخ البدء الافتراضي: اليوم (الـ API يرفض أي تاريخ في الماضي).
     if (startDate) {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        startDate.value = tomorrow.toISOString().slice(0, 10);
+        startDate.value = new Date().toISOString().slice(0, 10);
     }
+    if (refInput) refInput.value = '';
+    if (payMethod) payMethod.value = 'CASH';
+    toggleRefFieldHint();
 
     modal.classList.remove('hidden');
 
-    // تحميل خطوط السير النشطة (الطالب لديه صلاحية قراءة فقط على /routes)
-    routeSelect.disabled = true;
-    routeSelect.innerHTML = '<option value="">⏳ جاري تحميل خطوط السير...</option>';
-    try {
-        const routesRes = await window.routesApi.list({ page_size: 100, is_active: true });
-        const routes = Array.isArray(routesRes) ? routesRes : (routesRes?.items || []);
-        if (routes.length > 0) {
-            routeSelect.innerHTML = '<option value="">اختر خط السير</option>';
-            routes.forEach(route => {
-                buySubRoutesCache.set(Number(route.id), route);
-                const label = route.route_number ? `${route.route_number} - ${route.name}` : (route.name || `خط #${route.id}`);
-                routeSelect.innerHTML += `<option value="${route.id}">${label}</option>`;
-            });
-            routeSelect.disabled = false;
-        } else {
-            routeSelect.innerHTML = '<option value="">لا توجد خطوط نشطة حاليًا</option>';
-        }
-    } catch (routeErr) {
-        routeSelect.innerHTML = '<option value="">تعذر تحميل خطوط السير</option>';
-    }
-
-    // تحميل الباقات المتاحة
+    // تحميل الباقات المتاحة (الاشتراك = باقة + تاريخ بداية + دفع فقط).
     try {
         planSelect.innerHTML = '<option value="">⏳ جاري تحميل الباقات...</option>';
         const plansRes = await window.subscriptionPlansApi.listAvailable();
         const plans = Array.isArray(plansRes) ? plansRes : (plansRes?.items || []);
+        buySubPlansCache = new Map(plans.map(p => [Number(p.id), p]));
         planSelect.innerHTML = '<option value="">اختر باقة الاشتراك</option>';
         plans.forEach(p => {
-            planSelect.innerHTML += `<option value="${p.id}" ${Number(p.id) === Number(preselectedPlanId) ? 'selected' : ''}>${p.name} (${p.price} EGP / ${p.duration_days} يوم)</option>`;
+            const dpw = p.days_per_week != null ? ` • ${p.days_per_week} أيام نقل/أسبوع` : '';
+            planSelect.innerHTML += `<option value="${p.id}" ${Number(p.id) === Number(preselectedPlanId) ? 'selected' : ''}>${p.name} (${p.price} ${p.currency || 'EGP'} / ${p.duration_days} يوم${dpw})</option>`;
         });
         if (!plans.length) {
             planSelect.innerHTML += '<option value="" disabled>لا توجد باقات نشطة حاليًا</option>';
         }
+        renderBuySubPlanDetails();
     } catch (planErr) {
         planSelect.innerHTML = '<option value="">تعذر تحميل الباقات</option>';
         showToast('تعذر تحميل باقات الاشتراك', 'error');
-    }
-}
-
-async function onBuySubRouteChange() {
-    const routeSelect = document.getElementById('buy-sub-route-select');
-    const outboundSelect = document.getElementById('buy-sub-outbound-pickup');
-    const returnSelect = document.getElementById('buy-sub-return-pickup');
-    const routeId = Number(routeSelect?.value);
-
-    // أي تغيير للخط يُبطل حالة الرحلة السابقة (تفادي البيانات القديمة)
-    selectedStudentTrip = null;
-
-    if (!routeId) {
-        renderRouteItinerary(null);
-        [outboundSelect, returnSelect].forEach(s => {
-            if (s) { s.innerHTML = '<option value="">اختر خط السير أولاً</option>'; s.disabled = true; s.dataset.validPickupPoints = 'false'; }
-        });
-        return;
-    }
-
-    // عرض خط السير (Itinerary) من بيانات الخط الحقيقية
-    renderRouteItinerary(buySubRoutesCache.get(routeId) || null);
-    try {
-        const fullRoute = await window.routesApi.getById(routeId);
-        if (fullRoute) {
-            buySubRoutesCache.set(routeId, fullRoute);
-            renderRouteItinerary(fullRoute);
-        }
-    } catch (routeDetailErr) {
-        // نكتفي بالبيانات المخزّنة من قائمة الخطوط
-    }
-
-    // نقاط التجمع مرتبطة برحلة على هذا الخط
-    [outboundSelect, returnSelect].forEach(s => {
-        if (s) { s.innerHTML = '<option value="">⏳ جاري تحميل نقاط التجمع...</option>'; s.disabled = true; s.dataset.validPickupPoints = 'false'; }
-    });
-
-    try {
-        const tripsRes = await window.reservationsApi.listAvailableTrips({ route_id: routeId, page_size: 100 });
-        const trips = Array.isArray(tripsRes) ? tripsRes : (tripsRes?.items || []);
-        selectedStudentTrip = trips[0] || null;
-        const pickupPoints = collectPickupPointsFromTrips(trips);
-        populateBuySubscriptionPickupPoints(pickupPoints, trips.length);
-    } catch (e) {
-        populateBuySubscriptionPickupPoints([], 0, true);
-    }
-}
-
-function toggleReturnPickupSelector() {
-    const mode = document.getElementById('buy-sub-return-mode').value;
-    const container = document.getElementById('buy-sub-different-return-container');
-    if (container) {
-        if (mode === 'DIFFERENT') {
-            container.classList.remove('hidden');
-        } else {
-            container.classList.add('hidden');
-        }
     }
 }
 
@@ -1212,28 +1124,12 @@ async function handleBuySubscriptionSubmit(e) {
     e.preventDefault();
 
     const submitBtn = e.submitter || document.querySelector('#buy-subscription-modal button[type="submit"]');
-    const routeId = parseInt(document.getElementById('buy-sub-route-select').value);
     const planId = parseInt(document.getElementById('buy-sub-plan-select').value);
-    const outboundPickup = parseInt(document.getElementById('buy-sub-outbound-pickup').value);
-    const returnMode = document.getElementById('buy-sub-return-mode').value;
-    const returnPickupVal = document.getElementById('buy-sub-return-pickup')?.value;
-    const returnPickup = returnMode === 'DIFFERENT' && returnPickupVal ? parseInt(returnPickupVal) : null;
     const payMethod = document.getElementById('buy-sub-pay-method').value;
     const startDate = document.getElementById('buy-sub-start-date').value || null;
     const transRef = (document.getElementById('buy-sub-ref').value || '').trim() || null;
 
-    if (!Number.isInteger(routeId) || routeId <= 0) { showToast('يرجى اختيار خط السير.', 'error'); return; }
     if (!Number.isInteger(planId) || planId <= 0) { showToast('يرجى اختيار باقة الاشتراك.', 'error'); return; }
-
-    const outboundSelect = document.getElementById('buy-sub-outbound-pickup');
-    if (outboundSelect?.dataset.validPickupPoints !== 'true' || !Number.isInteger(outboundPickup) || outboundPickup <= 0) {
-        showToast('لا توجد نقطة تجمع صحيحة لهذا الخط. يجب أن تعيّن الإدارة نقاط التجمع لرحلات هذا الخط أولاً.', 'error');
-        return;
-    }
-    if (returnMode === 'DIFFERENT' && (!Number.isInteger(returnPickup) || returnPickup <= 0)) {
-        showToast('يرجى اختيار نقطة تجمع العودة، أو اختيار "نفس نقطة تجمع الذهاب".', 'error');
-        return;
-    }
     if ((payMethod === 'VODAFONE_CASH' || payMethod === 'INSTAPAY') && !transRef) {
         showToast('الدفع الرقمي يتطلب رقم مرجع التحويل. إن لم يتوفر الآن اختر الدفع نقدًا.', 'error');
         return;
@@ -1246,14 +1142,13 @@ async function handleBuySubscriptionSubmit(e) {
     }
 
     try {
+        // SubscriptionCreateRequest (SUBSCRIPTIONS.md): plan_id + start_date +
+        // payment_method (+ transaction_reference for digital methods).
+        // NO route/trip/pickup fields — transportation is selected per day later.
         const payload = {
-            route_id: routeId,
             plan_id: planId,
-            outbound_pickup_point_id: outboundPickup,
-            return_pickup_mode: returnMode,
-            return_pickup_point_id: returnPickup,
-            payment_method: payMethod,
             start_date: startDate,
+            payment_method: payMethod,
             transaction_reference: transRef
         };
 
@@ -1348,7 +1243,7 @@ async function loadSupervisorTripStudents() {
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
                         <td class="p-4 font-black text-slate-800 dark:text-white">${st.student_name}</td>
-                        <td class="p-4 font-semibold text-slate-500 dark:text-slate-400">${st.outbound_pickup || 'المحطة الرئيسية'}</td>
+                        <td class="p-4 font-semibold text-slate-500 dark:text-slate-400">${st.outbound_pickup || st.return_pickup || 'لم تُحدد نقطة'}</td>
                         <td class="p-4 font-mono font-bold text-slate-600 dark:text-slate-300">
                             <span dir="ltr">${st.subscription_status || '--'}</span>
                             ${st.payment_status ? `<span class="block text-[10px] font-bold ${st.payment_status === 'VERIFIED' ? 'text-emerald-500' : 'text-amber-500'}">${st.payment_status}</span>` : ''}
@@ -1485,7 +1380,12 @@ async function handleSupervisorScanSubmit(e) {
         });
 
         const studentName = res.student?.full_name || 'الطالب';
-        showToast(`تم تأكيد صعود وركوب الطالب (${studentName}) بنجاح!`, 'success');
+        // usage_days_this_week / remaining_usage_days_this_week هي أيام استخدام مميزة —
+        // الذهاب والعودة في نفس اليوم = يوم واحد (QR_AND_BOARDING.md).
+        const usageInfo = (res.usage_days_this_week != null && res.remaining_usage_days_this_week != null)
+            ? ` • استخدام الأسبوع: ${res.usage_days_this_week} يوم • المتبقي: ${res.remaining_usage_days_this_week} يوم`
+            : '';
+        showToast(`تم تأكيد صعود الطالب (${studentName}) بنجاح!${usageInfo}`, 'success');
         closeModal('supervisor-scan-modal');
         loadSupervisorTripStudents();
         loadSupervisorTripRecords();
@@ -3084,7 +2984,7 @@ async function rejectPayment(paymentId) {
 async function loadCeoSubscriptionPlans() {
     const tbody = document.getElementById('ceo-plans-tbody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
 
     try {
         const res = await window.subscriptionPlansApi.listAdmin({ page_size: 50 });
@@ -3099,6 +2999,7 @@ async function loadCeoSubscriptionPlans() {
                         <td class="p-4 font-black text-slate-800 dark:text-white">${p.name}</td>
                         <td class="p-4 font-bold text-blue-500">${p.plan_type}</td>
                         <td class="p-4 font-mono font-bold">${p.duration_days} يوم</td>
+                        <td class="p-4 font-mono font-bold">${p.days_per_week ?? '--'} يوم/أسبوع</td>
                         <td class="p-4 font-mono font-bold text-emerald-500">${p.price} ${p.currency}</td>
                         <td class="p-4">
                             <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${isAct ? 'bg-emerald-500/15 text-emerald-500' : 'bg-rose-500/15 text-rose-500'}">
@@ -3106,6 +3007,9 @@ async function loadCeoSubscriptionPlans() {
                             </span>
                         </td>
                         <td class="p-4 text-center">
+                            <button onclick="openEditPlanModal(${p.id}, '${(p.name || '').replace(/'/g, "\\'")}', '${p.plan_type || ''}', '${p.price ?? ''}', ${p.duration_days ?? 'null'}, ${p.days_per_week ?? 'null'})" class="text-brand-primary hover:underline font-bold text-xs bg-transparent border-0 cursor-pointer ml-2">
+                                تعديل
+                            </button>
                             <button onclick="togglePlanStatus(${p.id}, ${isAct})" class="text-blue-500 hover:underline font-bold text-xs bg-transparent border-0 cursor-pointer">
                                 ${isAct ? 'إيقاف الباقة' : 'تفعيل الباقة'}
                             </button>
@@ -3114,10 +3018,10 @@ async function loadCeoSubscriptionPlans() {
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">لا توجد باقات مسجلة</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400 font-bold">لا توجد باقات مسجلة</td></tr>';
         }
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل الباقات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل الباقات</td></tr>';
     }
 }
 
@@ -3125,6 +3029,8 @@ function openAddPlanModal() {
     document.getElementById('plan-name-input').value = '';
     document.getElementById('plan-price-input').value = '';
     document.getElementById('plan-duration-input').value = '';
+    const dpwInput = document.getElementById('plan-days-per-week-input');
+    if (dpwInput) dpwInput.value = '';
     updatePlanDurationHint();
     const modal = document.getElementById('add-plan-modal');
     if (modal) modal.classList.remove('hidden');
@@ -3166,6 +3072,8 @@ async function handleCreatePlanSubmit(e) {
     const price = document.getElementById('plan-price-input').value;
     const durVal = document.getElementById('plan-duration-input').value;
     const dur = durVal ? parseInt(durVal) : null;
+    const dpwVal = document.getElementById('plan-days-per-week-input')?.value;
+    const dpw = dpwVal ? parseInt(dpwVal) : null;
 
     // Mirror backend validation (SUBSCRIPTIONS.md §1) — server remains authoritative.
     if (!Number.isInteger(dur) || dur < 1 || dur > MAX_PLAN_DURATION_DAYS) {
@@ -3174,6 +3082,10 @@ async function handleCreatePlanSubmit(e) {
     }
     if (type === 'DAILY' && dur !== 1) {
         showToast('الباقة اليومية (DAILY) مدتها يوم واحد فقط.', 'error');
+        return;
+    }
+    if (!Number.isInteger(dpw) || dpw < 1 || dpw > MAX_PLAN_DAYS_PER_WEEK) {
+        showToast(`أيام المواصلات الأسبوعية يجب أن تكون بين 1 و ${MAX_PLAN_DAYS_PER_WEEK}.`, 'error');
         return;
     }
     const priceNum = parseFloat(price);
@@ -3187,7 +3099,8 @@ async function handleCreatePlanSubmit(e) {
             name: name,
             plan_type: type,
             price: price,
-            duration_days: dur
+            duration_days: dur,
+            days_per_week: dpw
         });
         showToast('تمت إضافة باقة الاشتراك بنجاح!', 'success');
         closeModal('add-plan-modal');
@@ -3204,6 +3117,82 @@ async function togglePlanStatus(planId, currentStatus) {
         loadCeoSubscriptionPlans();
     } catch (err) {
         console.error('Toggle plan error:', err);
+    }
+}
+
+// فتح مودال تعديل الباقة (PATCH /subscription-plans/{id}):
+// الاسم/السعر/المدة/أيام الأسبوع فقط — نوع الباقة غير قابل للتعديل في الـAPI.
+function openEditPlanModal(planId, name, planType, price, durationDays, daysPerWeek) {
+    const modal = document.getElementById('edit-plan-modal');
+    if (!modal) return;
+
+    document.getElementById('edit-plan-id').value = planId;
+    document.getElementById('edit-plan-type').value = PLAN_TYPE_LABELS[planType] || planType || '--';
+    document.getElementById('edit-plan-name-input').value = name || '';
+    document.getElementById('edit-plan-price-input').value = price != null ? String(price) : '';
+
+    const durInput = document.getElementById('edit-plan-duration-input');
+    const durHint = document.getElementById('edit-plan-duration-hint');
+    durInput.value = durationDays != null ? String(durationDays) : '';
+    if (planType === 'DAILY') {
+        // نفس قاعدة الإنشاء: DAILY ثابتة بيوم واحد.
+        durInput.value = '1';
+        durInput.min = '1';
+        durInput.max = '1';
+        durInput.readOnly = true;
+        if (durHint) durHint.textContent = 'الباقة اليومية ثابتة المدة: يوم واحد فقط.';
+    } else {
+        durInput.readOnly = false;
+        durInput.min = '1';
+        durInput.max = String(MAX_PLAN_DURATION_DAYS);
+        if (durHint) durHint.textContent = `مدة حرة يحددها المدير التنفيذي: من 1 إلى ${MAX_PLAN_DURATION_DAYS} يوم.`;
+    }
+
+    document.getElementById('edit-plan-days-per-week-input').value = daysPerWeek != null ? String(daysPerWeek) : '';
+    modal.classList.remove('hidden');
+}
+
+async function handleUpdatePlanSubmit(e) {
+    e.preventDefault();
+
+    const planId = parseInt(document.getElementById('edit-plan-id').value);
+    const name = document.getElementById('edit-plan-name-input').value.trim();
+    const price = document.getElementById('edit-plan-price-input').value;
+    const durVal = document.getElementById('edit-plan-duration-input').value;
+    const dur = durVal ? parseInt(durVal) : null;
+    const dpwVal = document.getElementById('edit-plan-days-per-week-input').value;
+    const dpw = dpwVal ? parseInt(dpwVal) : null;
+
+    if (!Number.isInteger(planId) || planId <= 0) { showToast('رقم الباقة غير صالح.', 'error'); return; }
+    if (!name) { showToast('يرجى إدخال اسم الباقة.', 'error'); return; }
+
+    // نفس قواعد التحقق في الإنشاء (نفسها في الخادم — SUBSCRIPTIONS.md §1).
+    if (!Number.isInteger(dur) || dur < 1 || dur > MAX_PLAN_DURATION_DAYS) {
+        showToast(`المدة يجب أن تكون بين 1 و ${MAX_PLAN_DURATION_DAYS} يوماً.`, 'error');
+        return;
+    }
+    if (!Number.isInteger(dpw) || dpw < 1 || dpw > MAX_PLAN_DAYS_PER_WEEK) {
+        showToast(`أيام المواصلات الأسبوعية يجب أن تكون بين 1 و ${MAX_PLAN_DAYS_PER_WEEK}.`, 'error');
+        return;
+    }
+    const priceNum = parseFloat(price);
+    if (!Number.isFinite(priceNum) || priceNum <= 0) {
+        showToast('يرجى إدخال سعر صحيح أكبر من صفر.', 'error');
+        return;
+    }
+
+    try {
+        await window.subscriptionPlansApi.update(planId, {
+            name: name,
+            price: price,
+            duration_days: dur,
+            days_per_week: dpw
+        });
+        showToast('تم تحديث الباقة بنجاح! الاشتراكات الجديدة فقط تستخدم القيم الجديدة.', 'success');
+        closeModal('edit-plan-modal');
+        loadCeoSubscriptionPlans();
+    } catch (err) {
+        console.error('Update plan error:', err);
     }
 }
 

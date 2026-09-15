@@ -610,13 +610,34 @@ const tripsApi = {
     }
 };
 
-// 8. RESERVATIONS / BOOKINGS
+// 8. RESERVATIONS / DAILY TRANSPORTATION SELECTION
 const reservationsApi = {
-    async book(tripId) {
+    /**
+     * POST /reservations — create TOMORROW's daily transportation selection.
+     * Body: { trip_id, outbound_pickup_point_id, return_pickup_point_id, direction_mode }
+     * There is NO service_date field: the backend always books for tomorrow.
+     * Requires an ACTIVE subscription (RESERVATIONS.md).
+     */
+    async book(data) {
         return ApiClient.request('/reservations', {
             method: 'POST',
-            body: { trip_id: tripId }
+            body: data
         });
+    },
+    /**
+     * PUT /reservations/my/tomorrow — replace tomorrow's existing selection.
+     */
+    async updateMyTomorrow(data) {
+        return ApiClient.request('/reservations/my/tomorrow', {
+            method: 'PUT',
+            body: data
+        });
+    },
+    /**
+     * GET /reservations/my/tomorrow — retrieve tomorrow's selection, if any.
+     */
+    async getMyTomorrow() {
+        return ApiClient.request('/reservations/my/tomorrow');
     },
     async listAdmin(params = {}) {
         return ApiClient.request('/reservations', { params });

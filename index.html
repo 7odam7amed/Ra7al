@@ -120,7 +120,7 @@
                         رحال <br> <span class="text-[#6AB9FF] leading-relaxed">النقل الجامعي أصبح أسهل وأسرع.</span>
                     </h2>
                     <p class="text-slate-300 max-w-2xl mx-auto text-xs sm:text-sm leading-relaxed">
-                        احجز مقعدك واشترك في باقات النقل الجامعي بثوانٍ معدودة واضمن رحلة ركوب يومية آمنة ومريحة مع تأكيد الحضور الذكي بالـ QR Code.
+                        اشترك في باقات النقل الجامعي بثوانٍ معدودة، حدّد مواصلات كل يوم، واضمن رحلة ركوب آمنة ومريحة مع تأكيد الحضور الذكي بالـ QR Code.
                     </p>
                     <div class="flex justify-center align-items-center gap-4 pt-4">
                         <button onclick="showRegister()" class="btn-gradient text-white px-5 py-4 text-xs font-black rounded-xl shadow-light tr border-0 cursor-pointer">ابدأ الآن</button>
@@ -167,8 +167,8 @@
                     </div>
                     <div class="step-card scroll-reveal space-y-3">
                         <div class="w-12 h-12 bg-[#0B5DAA] text-white text-base font-black rounded-full flex items-center justify-center mx-auto shadow-md">٣</div>
-                        <h4 class="font-black text-sm">اشترك أو احجز مقعدك</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">اختر باقة الاشتراك المناسبة أو احجز رحلتك الفردية ونقطة التجمع.</p>
+                        <h4 class="font-black text-sm">اشترك في باقة النقل</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">اختر باقة الاشتراك المناسبة وطريقة الدفع، ثم حدّد رحلة الغد ونقاط التجمع يومياً.</p>
                     </div>
                     <div class="step-card scroll-reveal space-y-3">
                         <div class="w-12 h-12 bg-[#0B5DAA] text-white text-base font-black rounded-full flex items-center justify-center mx-auto shadow-md">٤</div>
@@ -364,6 +364,12 @@
                     </h2>
                     <p id="student-header-meta" class="text-xs text-slate-500 dark:text-slate-400">جامعة أسيوط الأهلية | كلية الهندسة</p>
                 </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="openBuySubscriptionModal()" class="btn-gradient text-white px-4 py-2.5 rounded-xl text-xs font-black hover:scale-105 active:scale-95 fast-transition border-0 cursor-pointer shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-ticket"></i>
+                        <span>شراء اشتراك جديد</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Student Tabs -->
@@ -372,7 +378,7 @@
                     <i class="fa-solid fa-qrcode mr-1"></i> البطاقة الرقمية والاشتراكات
                 </button>
                 <button onclick="switchStudentTab('trips-booking', this)" class="student-tab-btn px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 border-0 cursor-pointer fast-transition bg-transparent">
-                    <i class="fa-solid fa-bus mr-1"></i> حجز الرحلات 
+                    <i class="fa-solid fa-bus mr-1"></i> مواصلات الغد
                 </button>
                 <button onclick="switchStudentTab('payments', this)" class="student-tab-btn px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 border-0 cursor-pointer fast-transition bg-transparent">
                     <i class="fa-solid fa-wallet mr-1"></i> سجل المدفوعات
@@ -398,10 +404,10 @@
                         </div>
 
                         <div class="space-y-1 text-xs">
-                            <p class="font-black text-slate-800 dark:text-white" id="student-qr-route-name">خط السير: جاري التحميل...</p>
+                            <p class="font-black text-slate-800 dark:text-white" id="student-qr-route-name">باقة النقل الجامعي</p>
                             <p class="text-[10px] text-slate-400 font-mono" id="student-qr-validity">الصلاحية: -- إلى --</p>
                         </div>
-                        <p class="text-[10px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl">امسح الكود عبر هاتف المشرف لتأكيد حضورك وصعود الباص عند نقطة التحرك.</p>
+                        <p class="text-[10px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl">امسح الكود عبر هاتف المشرف لتأكيد صعودك. الذهاب والعودة في نفس اليوم يحسبان يوماً واحداً من رصيدك الأسبوعي.</p>
                     </div>
 
                     <!-- Active Subscription Stats & Details -->
@@ -414,20 +420,20 @@
                                     <p id="sub-stat-plan" class="text-sm font-black text-brand-primary mt-1">--</p>
                                 </div>
                                 <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
-                                    <p class="text-[10px] text-slate-400 font-bold">مرات الصعود</p>
+                                    <p class="text-[10px] text-slate-400 font-bold">مدة الاشتراك (أيام)</p>
+                                    <p id="sub-stat-duration" class="text-sm font-black text-slate-700 dark:text-slate-200 mt-1">--</p>
+                                </div>
+                                <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                                    <p class="text-[10px] text-slate-400 font-bold">أيام المواصلات أسبوعياً</p>
+                                    <p id="sub-stat-days-per-week" class="text-sm font-black text-brand-primary mt-1">--</p>
+                                </div>
+                                <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                                    <p class="text-[10px] text-slate-400 font-bold">استخدام هذا الأسبوع (أيام)</p>
+                                    <p id="sub-stat-week-usage" class="text-xs font-bold text-brand-primary dark:text-[#6AB9FF] mt-1">--</p>
+                                </div>
+                                <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                                    <p class="text-[10px] text-slate-400 font-bold">مرات الصعود (إجمالي)</p>
                                     <p id="sub-stat-rides" class="text-sm font-black text-emerald-500 mt-1">0 رحلة</p>
-                                </div>
-                                <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
-                                    <p class="text-[10px] text-slate-400 font-bold">تجمع الذهاب</p>
-                                    <p id="sub-stat-outbound" class="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1">--</p>
-                                </div>
-                                <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
-                                    <p class="text-[10px] text-slate-400 font-bold">تجمع العودة</p>
-                                    <p id="sub-stat-return" class="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1">--</p>
-                                </div>
-                                <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
-                                    <p class="text-[10px] text-slate-400 font-bold">استخدام QR المتبقي</p>
-                                    <p id="sub-stat-qr-usage" class="text-xs font-bold text-brand-primary dark:text-[#6AB9FF] mt-1">--</p>
                                 </div>
                             </div>
                         </div>
@@ -458,34 +464,47 @@
                 </div>
             </div>
 
-            <!-- TAB 2: Trips & Single Reservations -->
+            <!-- TAB 2: Daily Transportation Selection (Tomorrow) -->
             <div id="student-tab-trips-booking" class="student-subview hidden space-y-6">
-                <!-- Available Subscription Plans Table -->
+                <!-- Tomorrow-only banner -->
+                <div class="rounded-2xl border border-brand-primary/15 bg-brand-primary/5 dark:bg-brand-primary/10 px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-300">
+                    <i class="fa-solid fa-calendar-day ml-1 text-brand-primary"></i>
+                    الحجز متاح لرحلات <span id="student-tomorrow-label">الغد</span> فقط — الخادم يحدد تاريخ الخدمة تلقائياً (لا يمكن اختيار أي تاريخ آخر).
+                    تتطلب المواصلات <span class="text-brand-primary">اشتراكاً نشطاً</span>؛ اشترِ أو جدّد باقتك من تبويب "بطاقة QR".
+                </div>
+                <!-- Tomorrow's Available Trips -->
                 <div class="glass-card rounded-3xl overflow-hidden shadow-sm">
-                    <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                    <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center flex-wrap gap-2">
                         <div>
-                            <h3 class="font-black text-sm">الباقات المتاحة للاشتراك</h3>
-                            <p class="text-xs text-slate-400 mt-0.5">اختر الباقة المناسبة لك واشترك في خدمة النقل الجامعي</p>
+                            <h3 class="font-black text-sm">رحلات الغد المتاحة</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">اختر الرحلة ثم نقاط تجمع الذهاب والعودة المناسبة لك</p>
                         </div>
-                        <button onclick="loadAvailableSubscriptionPlansForStudent()" class="text-xs text-brand-primary font-bold hover:underline bg-transparent border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
+                        <div class="flex items-center gap-2">
+                            <select id="student-direction-mode-select" onchange="loadStudentAvailableTrips()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                                <option value="BOTH">ذهاب وعودة (BOTH)</option>
+                                <option value="OUTBOUND_ONLY">ذهاب فقط (OUTBOUND_ONLY)</option>
+                                <option value="RETURN_ONLY">عودة فقط (RETURN_ONLY)</option>
+                            </select>
+                            <button onclick="loadStudentAvailableTrips()" class="text-xs text-brand-primary font-bold hover:underline bg-transparent border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
+                        </div>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-right text-xs">
                             <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
                                 <tr>
-                                    <th class="p-4">اسم الباقة</th>
-                                    <th class="p-4">نوع الباقة</th>
-                                    <th class="p-4">المدة</th>
-                                    <th class="p-4">السعر</th>
-                                    <th class="p-4 text-center">إجراء</th>
+                                    <th class="p-4">الرحلة</th>
+                                    <th class="p-4">تاريخ الخدمة (الغد)</th>
+                                    <th class="p-4">الإقلاع</th>
+                                    <th class="p-4">المقاعد المتاحة</th>
+                                    <th class="p-4 text-center">الحجز</th>
                                 </tr>
                             </thead>
-                            <tbody id="student-available-plans-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="5" class="p-6 text-center text-slate-400">جاري تحميل الباقات المتاحة...</td></tr>
+                            <tbody id="student-available-trips-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                <tr><td colspan="5" class="p-6 text-center text-slate-400">جاري تحميل رحلات الغد...</td></tr>
                             </tbody>
                         </table>
                     </div>
-                    <p id="student-subscription-plans-status" class="hidden px-5 pb-4 text-[11px] font-bold" aria-live="polite"></p>
+                    <p id="student-available-trips-status" class="hidden px-5 pb-4 text-[11px] font-bold" aria-live="polite"></p>
                 </div>
 
                 <!-- My Reservations Table -->
@@ -499,8 +518,8 @@
                             <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
                                 <tr>
                                     <th class="p-4">رقم الحجز</th>
-                                    <th class="p-4">الرحلة</th>
-                                    <th class="p-4">تاريخ الحجز</th>
+                                    <th class="p-4">رحلة الغد</th>
+                                    <th class="p-4">تاريخ الخدمة</th>
                                     <th class="p-4">الحالة</th>
                                     <th class="p-4 text-center">العمليات</th>
                                 </tr>
@@ -649,7 +668,7 @@
                                 <tr>
                                     <th class="p-4">اسم الطالب</th>
                                     <th class="p-4">نقطة الركوب</th>
-                                    <th class="p-4">رقم الهاتف</th>
+                                    <th class="p-4">حالة الاشتراك</th>
                                     <th class="p-4">الذهاب</th>
                                     <th class="p-4">العودة</th>
                                 </tr>
@@ -994,13 +1013,14 @@
                                     <th class="p-4">اسم الباقة</th>
                                     <th class="p-4">النوع</th>
                                     <th class="p-4">المدة (بالأيام)</th>
+                                    <th class="p-4">أيام النقل أسبوعياً</th>
                                     <th class="p-4">السعر</th>
                                     <th class="p-4">الحالة</th>
                                     <th class="p-4 text-center">العمليات</th>
                                 </tr>
                             </thead>
                             <tbody id="ceo-plans-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="6" class="p-6 text-center text-slate-400">جاري تحميل باقات الاشتراكات...</td></tr>
+                                <tr><td colspan="7" class="p-6 text-center text-slate-400">جاري تحميل باقات الاشتراكات...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1408,6 +1428,11 @@
                     <input type="number" id="plan-duration-input" min="1" max="730" required placeholder="مدة الباقة بالأيام (1 - 730)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                     <p id="plan-duration-hint" class="text-[10px] text-slate-400 mt-1">مدة حرة يحددها المدير التنفيذي: من 1 إلى 730 يوم.</p>
                 </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">أيام المواصلات أسبوعياً (days_per_week)</label>
+                    <input type="number" id="plan-days-per-week-input" min="1" max="7" required placeholder="أيام النقل في الأسبوع (1 - 7)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                    <p class="text-[10px] text-slate-400 mt-1">عدد أيام الاستخدام المميزة أسبوعياً (من 1 إلى 7). الذهاب والعودة في نفس اليوم = يوم استخدام واحد.</p>
+                </div>
                 <div class="flex gap-2 pt-2">
                     <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ الباقة</button>
                     <button type="button" onclick="closeModal('add-plan-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
@@ -1416,41 +1441,50 @@
         </div>
     </div>
 
+    <!-- 10b. Edit Subscription Plan Modal (CEO) -->
+    <div id="edit-plan-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+        <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">تعديل باقة الاشتراك</h3>
+            <p class="text-[11px] text-slate-400 -mt-2">التعديل يؤثر على الاشتراكات الجديدة فقط — الاشتراكات النشطة تحتفظ بقيمها المسجلة وقت الشراء.</p>
+            <form onsubmit="handleUpdatePlanSubmit(event)" class="space-y-3">
+                <input type="hidden" id="edit-plan-id" value="">
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">نوع الباقة (غير قابل للتعديل)</label>
+                    <input type="text" id="edit-plan-type" readonly class="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none text-slate-400">
+                </div>
+                <input type="text" id="edit-plan-name-input" required placeholder="اسم الباقة" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <input type="number" step="0.5" min="0.5" id="edit-plan-price-input" required placeholder="السعر بالجنيه المصري (EGP)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                <div>
+                    <input type="number" id="edit-plan-duration-input" min="1" max="730" required placeholder="مدة الباقة بالأيام (1 - 730)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                    <p id="edit-plan-duration-hint" class="text-[10px] text-slate-400 mt-1">مدة حرة يحددها المدير التنفيذي: من 1 إلى 730 يوم. الباقة اليومية (DAILY) يوم واحد فقط.</p>
+                </div>
+                <div>
+                    <input type="number" id="edit-plan-days-per-week-input" min="1" max="7" required placeholder="أيام النقل في الأسبوع (1 - 7)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                    <p class="text-[10px] text-slate-400 mt-1">عدد أيام الاستخدام المميزة أسبوعياً (من 1 إلى 7). الذهاب والعودة في نفس اليوم = يوم استخدام واحد.</p>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">حفظ التعديلات</button>
+                    <button type="button" onclick="closeModal('edit-plan-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- 11. Buy Subscription Modal (Student) -->
     <div id="buy-subscription-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
         <div class="glass-card p-6 rounded-3xl w-full max-w-lg mx-4 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">شراء وتفعيل اشتراك مسار جامعي</h3>
-            <div id="buy-sub-trip-context" class="hidden rounded-2xl border border-brand-primary/15 bg-brand-primary/5 dark:bg-brand-primary/10 px-4 py-3 text-xs text-slate-600 dark:text-slate-300"></div>
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">شراء اشتراك النقل الجامعي</h3>
+            <p class="text-[11px] text-slate-400 -mt-2">الاشتراك = باقة + تاريخ بداية + طريقة دفع فقط. اختيار المواصلات (الرحلة ونقاط التجمع) يتم يومياً من تبويب "المواصلات" بعد تفعيل الاشتراك.</p>
             <form onsubmit="handleBuySubscriptionSubmit(event)" class="space-y-3">
                 <div>
-                    <label class="block text-[10px] text-slate-400 font-bold mb-1">اختر خط السير</label>
-                    <select id="buy-sub-route-select" onchange="onBuySubRouteChange()" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
-                </div>
-                <div>
                     <label class="block text-[10px] text-slate-400 font-bold mb-1">اختر باقة الاشتراك</label>
-                    <select id="buy-sub-plan-select" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-[10px] text-slate-400 font-bold mb-1">نقطة تجمع الذهاب (Outbound)</label>
-                        <select id="buy-sub-outbound-pickup" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] text-slate-400 font-bold mb-1">طريقة تحديد نقطة العودة</label>
-                        <select id="buy-sub-return-mode" onchange="toggleReturnPickupSelector()" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                            <option value="SAME_AS_OUTBOUND">نفس نقطة تجمع الذهاب</option>
-                            <option value="DIFFERENT">نقطة مختلفة</option>
-                        </select>
-                    </div>
-                </div>
-                <div id="buy-sub-different-return-container" class="hidden">
-                    <label class="block text-[10px] text-slate-400 font-bold mb-1">نقطة تجمع العودة المخصصة</label>
-                    <select id="buy-sub-return-pickup" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                    <select id="buy-sub-plan-select" onchange="onBuySubPlanChange()" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
+                    <p id="buy-sub-plan-details" class="hidden text-[10px] font-bold text-brand-primary mt-1 bg-brand-primary/5 dark:bg-brand-primary/10 rounded-xl px-3 py-2"></p>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-[10px] text-slate-400 font-bold mb-1">طريقة الدفع</label>
-                        <select id="buy-sub-pay-method" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                        <select id="buy-sub-pay-method" onchange="onBuySubPayMethodChange()" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
                             <option value="CASH">نقدًا (مع المشرف)</option>
                             <option value="VODAFONE_CASH">فودافون كاش (Vodafone Cash)</option>
                             <option value="INSTAPAY">انستاباي (InstaPay)</option>
@@ -1462,8 +1496,9 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-[10px] text-slate-400 font-bold mb-1">رقم مرجع التحويل (إن وُجد للدفع الرقمي)</label>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1" id="buy-sub-ref-label">رقم مرجع التحويل (مطلوب للدفع الرقمي)</label>
                     <input type="text" id="buy-sub-ref" placeholder="مثال: VC-123456789" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                    <p id="buy-sub-ref-hint" class="text-[10px] text-slate-400 mt-1 hidden">يتطلب الدفع الرقمي (فودافون كاش / انستاباي) إدخال رقم مرجع العملية.</p>
                 </div>
                 <div class="flex gap-2 pt-2">
                     <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">تأكيد وشراء الاشتراك</button>
@@ -1549,33 +1584,32 @@
     </div>
 
 
-    <!-- 13b. Create Reservation Payment Modal (Student) -->
-    <div id="create-reservation-payment-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
+    <!-- 13b. Select Daily Transportation Modal (Student, TOMORROW only) -->
+    <div id="select-transportation-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-sm transition-all">
         <div class="glass-card p-6 rounded-3xl w-full max-w-md mx-4 space-y-4 shadow-2xl">
-            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">دفع تكلفة الحجز</h3>
-            <p class="text-xs text-slate-400">المبلغ المستحق: <span id="create-pay-amount-text" class="font-black text-slate-700 dark:text-slate-200">--</span> (يُحسب من سعر الرحلة في النظام)</p>
-            <form onsubmit="handleCreateReservationPaymentSubmit(event)" class="space-y-3">
-                <input type="hidden" id="create-pay-reservation-id" value="">
+            <h3 class="font-bold text-lg text-brand-primary dark:text-[#6AB9FF]">حجز مواصلات الغد</h3>
+            <p class="text-xs text-slate-400" id="sel-trans-trip-context">--</p>
+            <form onsubmit="handleSelectTransportationSubmit(event)" class="space-y-3">
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-1">طريقة الدفع</label>
-                    <select id="create-pay-method" onchange="onCreateReservationPayMethodChange()" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                        <option value="CASH">نقدًا (مع المشرف)</option>
-                        <option value="VODAFONE_CASH">فودافون كاش (Vodafone Cash)</option>
-                        <option value="INSTAPAY">انستاباي (InstaPay)</option>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">الاتجاه المطلوب</label>
+                    <select id="sel-trans-direction-mode" onchange="toggleReturnSelectorForMode()" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                        <option value="BOTH">ذهاب وعودة (BOTH)</option>
+                        <option value="OUTBOUND_ONLY">ذهاب فقط (OUTBOUND_ONLY)</option>
+                        <option value="RETURN_ONLY">عودة فقط (RETURN_ONLY)</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-1">رقم مرجع التحويل (مطلوب للدفع الرقمي)</label>
-                    <input type="text" id="create-pay-ref" placeholder="مثال: VC-123456789" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">نقطة تجمع الذهاب</label>
+                    <select id="sel-trans-outbound" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-1">ملاحظات (اختياري)</label>
-                    <textarea id="create-pay-notes" rows="2" placeholder="تم التحويل من رقم 010xxxxxxxx" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs focus:outline-none"></textarea>
+                <div id="sel-trans-return-container">
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">نقطة تجمع العودة</label>
+                    <select id="sel-trans-return" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
                 </div>
+                <p class="text-[10px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl">الحجز لتاريخ الغد فقط. الذهاب والعودة في نفس اليوم يحسبان يوماً واحداً من رصيدك الأسبوعي.</p>
                 <div class="flex gap-2 pt-2">
-                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">إرسال الدفع للمراجعة</button>
-                    <button type="button" onclick="closeModal('create-reservation-payment-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">لاحقاً</button>
-    
+                    <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">تأكيد الحجز</button>
+                    <button type="button" onclick="closeModal('select-transportation-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
                 </div>
             </form>
         </div>
