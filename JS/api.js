@@ -613,10 +613,13 @@ const tripsApi = {
 // 8. RESERVATIONS / DAILY TRANSPORTATION SELECTION
 const reservationsApi = {
     /**
-     * POST /reservations — create TOMORROW's daily transportation selection.
-     * Body: { trip_id, outbound_pickup_point_id, return_pickup_point_id, direction_mode }
-     * There is NO service_date field: the backend always books for tomorrow.
-     * Requires an ACTIVE subscription (RESERVATIONS.md).
+     * POST /reservations — create a daily transportation selection.
+     * Body: { trip_id, service_date?, outbound_pickup_point_id,
+     *         return_pickup_point_id, direction_mode }
+     * service_date is OPTIONAL: defaults to TOMORROW server-side when
+     * omitted; must be today or later, inside the ACTIVE subscription's
+     * validity window, and within the weekly days_per_week_snapshot limit
+     * (enforced by the backend — RESERVATIONS.md).
      */
     async book(data) {
         return ApiClient.request('/reservations', {

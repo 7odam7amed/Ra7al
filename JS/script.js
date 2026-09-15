@@ -26,7 +26,9 @@ const PLAN_TYPE_LABELS = {
     TERM: 'فصل دراسي'
 };
 
-// Plan duration bounds (SUBSCRIPTIONS.md: 1–730 days; DAILY fixed to exactly 1)
+// Plan duration bounds (SUBSCRIPTIONS.md: 1–730 days for ALL plan types;
+// DAILY is flexible too — duration_days = validity window, days_per_week =
+// weekly transportation usage-day cap).
 const MAX_PLAN_DURATION_DAYS = 730;
 // Weekly usage-day allowance bounds (days_per_week: 1–7 distinct usage days)
 const MAX_PLAN_DAYS_PER_WEEK = 7;
@@ -823,6 +825,18 @@ function openSelectTransportationModal(tripId) {
     modal.dataset.tripId = String(Number(trip.id));
     setElementText('sel-trans-trip-context', `${routeName} • ${dep} • ${getTomorrowLabel()}`);
 
+    // Service-date picker: defaults to TOMORROW, past dates disabled.
+    // The backend remains the authority on eligibility (subscription
+    // coverage + weekly usage limit).
+    const dateInput = document.getElementById('sel-trans-service-date');
+    if (dateInput) {
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        dateInput.min = today.toISOString().slice(0, 10);
+        dateInput.value = tomorrow.toISOString().slice(0, 10);
+    }
+
     const outSel = document.getElementById('sel-trans-outbound');
     const retSel = document.getElementById('sel-trans-return');
     if (outSel) outSel.innerHTML = optionsHtml;
@@ -855,9 +869,11 @@ async function handleSelectTransportationSubmit(e) {
     const retVal = document.getElementById('sel-trans-return')?.value;
     const outboundId = outVal ? Number(outVal) : null;
     const returnId = retVal ? Number(retVal) : null;
+    const serviceDate = document.getElementById('sel-trans-service-date')?.value || null;
 
     // متطلبات نقاط الاتجاه (نفس قواعد الخادم — ReservationCreateRequest):
     if (!Number.isInteger(tripId) || tripId <= 0) { showToast('رقم الرحلة غير صالح.', 'error'); return; }
+    if (!serviceDate) { showToast('يرجى اختيار تاريخ المواصلات.', 'error'); return; }
     if (mode !== 'RETURN_ONLY' && (!Number.isInteger(outboundId) || outboundId <= 0)) {
         showToast('يرجى اختيار نقطة تجمع الذهاب.', 'error'); return;
     }
@@ -872,15 +888,18 @@ async function handleSelectTransportationSubmit(e) {
     }
 
     try {
-        // ReservationCreateRequest: trip + points + direction ONLY.
-        // The service date is decided by the backend (tomorrow) — never sent.
+        // ReservationCreateRequest: trip + service_date + points + direction.
+        // service_date defaults to tomorrow server-side when omitted; past
+        // dates, dates outside the subscription, and weekly-limit overruns
+        // are rejected by the backend (source of truth).
         await window.reservationsApi.book({
             trip_id: tripId,
+            service_date: serviceDate,
             outbound_pickup_point_id: outboundId,
             return_pickup_point_id: returnId,
             direction_mode: mode
         });
-        showToast('تم تأكيد مواصلات الغد بنجاح! اعرض كود QR للمشرف يوم الرحلة.', 'success');
+        showToast('تم تأكيد حجز المواصلات بنجاح! اعرض كود QR للمشرف يوم الرحلة.', 'success');
         closeModal('select-transportation-modal');
         loadMyReservations();
     } catch (err) {
@@ -3038,8 +3057,10 @@ function openAddPlanModal() {
 
 /**
  * Keep the duration field aligned with the selected plan type.
- * DAILY is fixed to exactly 1 day; every other type is CEO-defined (1–730).
- * (SUBSCRIPTIONS.md §1 — never assume WEEKLY=7 / MONTHLY=30 / TERM=90.)
+ * DAILY is FLEXIBLE: duration_days is the CEO-defined validity window and
+ * days_per_week caps weekly transportation usage days (1–7).
+ * Every type is CEO-defined (1–730). Never assume WEEKLY=7 / MONTHLY=30 /
+ * TERM=90 — the CEO's values are authoritative.
  */
 function onPlanTypeChange() {
     updatePlanDurationHint();
@@ -3051,16 +3072,12 @@ function updatePlanDurationHint() {
     const hint = document.getElementById('plan-duration-hint');
     if (!input) return;
 
+    input.readOnly = false;
+    input.min = '1';
+    input.max = String(MAX_PLAN_DURATION_DAYS);
     if (type === 'DAILY') {
-        input.value = '1';
-        input.min = '1';
-        input.max = '1';
-        input.readOnly = true;
-        if (hint) hint.textContent = 'الباقة اليومية ثابتة المدة: يوم واحد فقط.';
+        if (hint) hint.textContent = `باقة يومية مرنة: المدة فترة صلاحية يحددها المدير (من 1 إلى ${MAX_PLAN_DURATION_DAYS} يوماً) ويختار الطالب بها أيام مواصلات محددة — حتى ${document.getElementById('plan-days-per-week-input')?.value || 1} يوم في الأسبوع.`;
     } else {
-        input.readOnly = false;
-        input.min = '1';
-        input.max = String(MAX_PLAN_DURATION_DAYS);
         if (hint) hint.textContent = `مدة حرة يحددها المدير التنفيذي: من 1 إلى ${MAX_PLAN_DURATION_DAYS} يوم (مثال: WEEKLY + 8 أيام، MONTHLY + 45 يوماً، TERM + 120 يوماً).`;
     }
 }
@@ -3075,13 +3092,9 @@ async function handleCreatePlanSubmit(e) {
     const dpwVal = document.getElementById('plan-days-per-week-input')?.value;
     const dpw = dpwVal ? parseInt(dpwVal) : null;
 
-    // Mirror backend validation (SUBSCRIPTIONS.md §1) — server remains authoritative.
+    // Mirror backend validation — server remains authoritative.
     if (!Number.isInteger(dur) || dur < 1 || dur > MAX_PLAN_DURATION_DAYS) {
         showToast(`المدة يجب أن تكون بين 1 و ${MAX_PLAN_DURATION_DAYS} يوماً.`, 'error');
-        return;
-    }
-    if (type === 'DAILY' && dur !== 1) {
-        showToast('الباقة اليومية (DAILY) مدتها يوم واحد فقط.', 'error');
         return;
     }
     if (!Number.isInteger(dpw) || dpw < 1 || dpw > MAX_PLAN_DAYS_PER_WEEK) {
@@ -3133,18 +3146,14 @@ function openEditPlanModal(planId, name, planType, price, durationDays, daysPerW
 
     const durInput = document.getElementById('edit-plan-duration-input');
     const durHint = document.getElementById('edit-plan-duration-hint');
+    // DAILY is flexible: show the stored CEO-defined duration, editable.
+    durInput.readOnly = false;
+    durInput.min = '1';
+    durInput.max = String(MAX_PLAN_DURATION_DAYS);
     durInput.value = durationDays != null ? String(durationDays) : '';
     if (planType === 'DAILY') {
-        // نفس قاعدة الإنشاء: DAILY ثابتة بيوم واحد.
-        durInput.value = '1';
-        durInput.min = '1';
-        durInput.max = '1';
-        durInput.readOnly = true;
-        if (durHint) durHint.textContent = 'الباقة اليومية ثابتة المدة: يوم واحد فقط.';
+        if (durHint) durHint.textContent = `باقة يومية مرنة: المدة فترة صلاحية حرة (من 1 إلى ${MAX_PLAN_DURATION_DAYS} يوماً) وأيام الأسبوع تحدد سقف الاستخدام الأسبوعي.`;
     } else {
-        durInput.readOnly = false;
-        durInput.min = '1';
-        durInput.max = String(MAX_PLAN_DURATION_DAYS);
         if (durHint) durHint.textContent = `مدة حرة يحددها المدير التنفيذي: من 1 إلى ${MAX_PLAN_DURATION_DAYS} يوم.`;
     }
 
@@ -3166,7 +3175,7 @@ async function handleUpdatePlanSubmit(e) {
     if (!Number.isInteger(planId) || planId <= 0) { showToast('رقم الباقة غير صالح.', 'error'); return; }
     if (!name) { showToast('يرجى إدخال اسم الباقة.', 'error'); return; }
 
-    // نفس قواعد التحقق في الإنشاء (نفسها في الخادم — SUBSCRIPTIONS.md §1).
+    // نفس قواعد التحقق في الإنشاء (نفسها في الخادم).
     if (!Number.isInteger(dur) || dur < 1 || dur > MAX_PLAN_DURATION_DAYS) {
         showToast(`المدة يجب أن تكون بين 1 و ${MAX_PLAN_DURATION_DAYS} يوماً.`, 'error');
         return;

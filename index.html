@@ -1426,7 +1426,7 @@
                 <input type="number" step="0.5" min="0.5" id="plan-price-input" required placeholder="السعر بالجنيه المصري (EGP)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                 <div>
                     <input type="number" id="plan-duration-input" min="1" max="730" required placeholder="مدة الباقة بالأيام (1 - 730)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                    <p id="plan-duration-hint" class="text-[10px] text-slate-400 mt-1">مدة حرة يحددها المدير التنفيذي: من 1 إلى 730 يوم.</p>
+                    <p id="plan-duration-hint" class="text-[10px] text-slate-400 mt-1">مدة حرة يحددها المدير التنفيذي: من 1 إلى 730 يوم. باقة DAILY مرنة: المدة فترة صلاحية والطالب يختار أيام مواصلات محددة.</p>
                 </div>
                 <div>
                     <label class="block text-[10px] text-slate-400 font-bold mb-1">أيام المواصلات أسبوعياً (days_per_week)</label>
@@ -1456,7 +1456,7 @@
                 <input type="number" step="0.5" min="0.5" id="edit-plan-price-input" required placeholder="السعر بالجنيه المصري (EGP)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
                 <div>
                     <input type="number" id="edit-plan-duration-input" min="1" max="730" required placeholder="مدة الباقة بالأيام (1 - 730)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
-                    <p id="edit-plan-duration-hint" class="text-[10px] text-slate-400 mt-1">مدة حرة يحددها المدير التنفيذي: من 1 إلى 730 يوم. الباقة اليومية (DAILY) يوم واحد فقط.</p>
+                    <p id="edit-plan-duration-hint" class="text-[10px] text-slate-400 mt-1">مدة حرة يحددها المدير التنفيذي: من 1 إلى 730 يوم. الباقة اليومية (DAILY) مرنة: المدة فترة صلاحية وليست يوماً واحداً.</p>
                 </div>
                 <div>
                     <input type="number" id="edit-plan-days-per-week-input" min="1" max="7" required placeholder="أيام النقل في الأسبوع (1 - 7)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none">
@@ -1591,6 +1591,11 @@
             <p class="text-xs text-slate-400" id="sel-trans-trip-context">--</p>
             <form onsubmit="handleSelectTransportationSubmit(event)" class="space-y-3">
                 <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">تاريخ المواصلات</label>
+                    <input type="date" id="sel-trans-service-date" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                    <p class="text-[10px] text-slate-400 mt-1">اختر أي يوم داخل فترة صلاحية اشتراكك — التواريخ الماضية مرفوضة.</p>
+                </div>
+                <div>
                     <label class="block text-[10px] text-slate-400 font-bold mb-1">الاتجاه المطلوب</label>
                     <select id="sel-trans-direction-mode" onchange="toggleReturnSelectorForMode()" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
                         <option value="BOTH">ذهاب وعودة (BOTH)</option>
@@ -1606,7 +1611,7 @@
                     <label class="block text-[10px] text-slate-400 font-bold mb-1">نقطة تجمع العودة</label>
                     <select id="sel-trans-return" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none"></select>
                 </div>
-                <p class="text-[10px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl">الحجز لتاريخ الغد فقط. الذهاب والعودة في نفس اليوم يحسبان يوماً واحداً من رصيدك الأسبوعي.</p>
+                <p class="text-[10px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl">الذهاب والعودة في نفس اليوم يحسبان يوماً واحداً من رصيدك الأسبوعي.</p>
                 <div class="flex gap-2 pt-2">
                     <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">تأكيد الحجز</button>
                     <button type="button" onclick="closeModal('select-transportation-modal')" class="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold rounded-xl fast-transition border-0 cursor-pointer text-slate-700 dark:text-slate-300">إلغاء</button>
