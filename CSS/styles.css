@@ -111,7 +111,10 @@ th, td {
    Mobile/tablet (< 1024px): sidebar becomes a fixed overlay drawer
    with a backdrop; content takes the full width and never shifts.
    ============================================================ */
-.ceo-layout {
+/* :not(.hidden) keeps Tailwind's .hidden (display:none) winning over this
+   flex layout — the CEO view is hidden for guests/students/supervisors and
+   only shown by JS when the authenticated role is CEO. */
+.ceo-layout:not(.hidden) {
     display: flex;
     align-items: stretch;
     position: relative;

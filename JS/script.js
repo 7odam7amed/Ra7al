@@ -1578,6 +1578,11 @@ function toggleCeoSidebar() {
 }
 
 function switchCeoTab(tabId, btnElement) {
+    // CEO access control: the dashboard exists only for authenticated CEOs.
+    // For any other role this is a no-op (the view itself stays hidden via
+    // switchRole + CSS; see switchRole and .ceo-layout:not(.hidden)).
+    if (!currentUser || (currentUser.role || '').toUpperCase() !== 'CEO') return;
+
     // Selecting a navigation item closes the mobile drawer (no-op on desktop).
     closeCeoSidebar();
 
@@ -1637,63 +1642,110 @@ function isUserPending(u) {
 
 let ceoLoadedUsersList = [];
 
+/**
+ * Resolve the true total for a paginated list endpoint.
+ * The dashboard needs the collection total, never the current-page count
+ * (API_REFERENCE.md pagination contract: { items, total, page, ... }).
+ * Returns null when the caller cannot read the endpoint (e.g. 403 for the
+ * role) so the UI can show "—" instead of a fake zero.
+ */
+function paginatedTotal(result) {
+    if (!result) return null; // request failed / role denied
+    if (typeof result.total === 'number') return result.total;
+    if (Array.isArray(result)) return result.length;
+    if (result.items && Array.isArray(result.items)) return result.items.length;
+    return null;
+}
+
+/**
+ * Push a real API value into a stat card WITHOUT bypassing the existing
+ * counter animation: data-target remains the animation's source of truth,
+ * so we set it and trigger the same animateCounter() used by the landing
+ * page. A null value (still loading, failed or role-denied request) renders
+ * "—" — placeholder numbers are never presented as real data.
+ * opts.defer: only set data-target and let the scroll IntersectionObserver
+ * start the animation when the card becomes visible (landing cards).
+ */
+function setStatValue(element, value, opts = {}) {
+    if (!element) return;
+    if (value == null) {
+        element.removeAttribute('data-target');
+        delete element.dataset.animated;
+        element.innerText = '—';
+        return;
+    }
+    const target = String(value);
+    if (element.getAttribute('data-target') === target && element.dataset.animated === 'true') return;
+    element.setAttribute('data-target', target);
+    if (opts.defer) return; // scroll observer animates it when visible
+    if (opts.animate && typeof animateCounter === 'function') {
+        delete element.dataset.animated;
+        animateCounter(element);
+    } else {
+        // No animation requested (e.g. refresh after a CRUD action): direct set.
+        const suffix = element.getAttribute('data-suffix') || '';
+        element.innerText = `${Number(value).toLocaleString('en-US')}${suffix}`;
+        element.dataset.animated = 'true';
+    }
+}
+
+/**
+ * Landing-page variant: set the real target and animate immediately if the
+ * card is already on screen (e.g. reload mid-page, where the scroll observer
+ * has already fired and unobserved); otherwise leave it to the observer.
+ */
+function applyLandingStat(element, value) {
+    if (!element) return;
+    setStatValue(element, value, { defer: true });
+    if (value == null) return;
+    const rect = element.getBoundingClientRect();
+    const inView = rect.top < (window.innerHeight || document.documentElement.clientHeight) && rect.bottom > 0;
+    if (inView && element.dataset.animated !== 'true' && typeof animateCounter === 'function') {
+        element.dataset.animated = 'true';
+        animateCounter(element);
+    }
+}
+
 async function loadCeoDashboardData() {
-    try {
-        const [usersRes, pendingUsersRes, busesRes, tripsRes, subsRes] = await Promise.allSettled([
-            window.usersApi.list({ page_size: 100 }),
-            window.usersApi.listPending({ page_size: 100 }),
-            window.busesApi.list({ page_size: 1 }),
-            window.tripsApi.list({ page_size: 1 }),
-            window.subscriptionsApi.listAll({ page_size: 1 })
-        ]);
+    const statIds = ['stat-ceo-users-count', 'stat-ceo-pending-count', 'stat-ceo-buses-count', 'stat-ceo-trips-count', 'stat-ceo-subs-count'];
+    // Loading state: "—" until real values arrive (never fake zeros).
+    statIds.forEach(id => setStatValue(document.getElementById(id), null));
 
-        const allUsersRaw = usersRes.status === 'fulfilled' ? usersRes.value : null;
-        const allUsers = Array.isArray(allUsersRaw) ? allUsersRaw : (allUsersRaw?.items || allUsersRaw?.data || allUsersRaw?.users || []);
-        const totalUsers = (allUsersRaw && typeof allUsersRaw.total === 'number') ? allUsersRaw.total : allUsers.length;
+    // Total users / pending students / fleet size / scheduled trips / active
+    // subscriptions — all from documented CEO listing endpoints. page_size=1
+    // keeps the payloads tiny; the count lives in the pagination envelope.
+    const [usersRes, pendingUsersRes, busesRes, tripsRes, subsRes] = await Promise.allSettled([
+        window.usersApi.list({ page_size: 1 }),
+        window.usersApi.listPending({ page_size: 1 }),
+        window.busesApi.list({ page_size: 1 }),
+        window.tripsApi.list({ status: 'SCHEDULED', page_size: 1 }),
+        window.subscriptionsApi.listAll({ status: 'ACTIVE', page_size: 1 })
+    ]);
 
-        // Pending count comes from the dedicated GET /users/pending queue (status=PENDING)
-        const pendingUsersRaw = pendingUsersRes.status === 'fulfilled' ? pendingUsersRes.value : null;
-        const pendingUsers = Array.isArray(pendingUsersRaw) ? pendingUsersRaw : (pendingUsersRaw?.items || pendingUsersRaw?.data || pendingUsersRaw?.users || []);
-        
-        // Combine to find all unique pending users
-        const combined = [...allUsers, ...pendingUsers];
-        const uniqueUsersMap = new Map();
-        combined.forEach(u => { if (u && u.id) uniqueUsersMap.set(u.id, u); });
-        const allUniqueUsers = Array.from(uniqueUsersMap.values());
+    const totalUsers = paginatedTotal(usersRes.status === 'fulfilled' ? usersRes.value : null);
+    // Pending queue total (GET /users/pending envelope: the authoritative
+    // "awaiting approval" count, no client-side recomputation).
+    const pendingTotal = paginatedTotal(pendingUsersRes.status === 'fulfilled' ? pendingUsersRes.value : null);
+    const busesCount = paginatedTotal(busesRes.status === 'fulfilled' ? busesRes.value : null);
+    const tripsCount = paginatedTotal(tripsRes.status === 'fulfilled' ? tripsRes.value : null);
+    const subsCount = paginatedTotal(subsRes.status === 'fulfilled' ? subsRes.value : null);
 
-        const pendingCount = allUniqueUsers.filter(u => isUserPending(u) && (u.role || '').toUpperCase() === 'STUDENT').length;
+    // Failed/denied requests surface as "—", not 0.
+    setStatValue(document.getElementById('stat-ceo-users-count'), totalUsers, { animate: true });
+    setStatValue(document.getElementById('stat-ceo-pending-count'), pendingTotal, { animate: true });
+    setStatValue(document.getElementById('stat-ceo-buses-count'), busesCount, { animate: true });
+    setStatValue(document.getElementById('stat-ceo-trips-count'), tripsCount, { animate: true });
+    setStatValue(document.getElementById('stat-ceo-subs-count'), subsCount, { animate: true });
 
-        const busesCount = busesRes.status === 'fulfilled' ? (busesRes.value?.total ?? (Array.isArray(busesRes.value) ? busesRes.value.length : 0)) : 0;
-        const tripsCount = tripsRes.status === 'fulfilled' ? (tripsRes.value?.total ?? (Array.isArray(tripsRes.value) ? tripsRes.value.length : 0)) : 0;
-        const subsCount = subsRes.status === 'fulfilled' ? (subsRes.value?.total ?? (Array.isArray(subsRes.value) ? subsRes.value.length : 0)) : 0;
-
-        const statUsers = document.getElementById('stat-ceo-users-count');
-        if (statUsers) statUsers.innerText = totalUsers;
-
-        const statPending = document.getElementById('stat-ceo-pending-count');
-        if (statPending) statPending.innerText = pendingCount;
-
-        const statBuses = document.getElementById('stat-ceo-buses-count');
-        if (statBuses) statBuses.innerText = busesCount;
-
-        const statTrips = document.getElementById('stat-ceo-trips-count');
-        if (statTrips) statTrips.innerText = tripsCount;
-
-        const statSubs = document.getElementById('stat-ceo-subs-count');
-        if (statSubs) statSubs.innerText = subsCount;
-
-        // Update sidebar pending badge
-        const badgeElem = document.getElementById('ceo-pending-badge');
-        if (badgeElem) {
-            if (pendingCount > 0) {
-                badgeElem.innerText = `${pendingCount} جديد`;
-                badgeElem.classList.remove('hidden');
-            } else {
-                badgeElem.classList.add('hidden');
-            }
+    // Sidebar pending badge reflects the real queue total.
+    const badgeElem = document.getElementById('ceo-pending-badge');
+    if (badgeElem) {
+        if (pendingTotal > 0) {
+            badgeElem.innerText = `${pendingTotal} جديد`;
+            badgeElem.classList.remove('hidden');
+        } else {
+            badgeElem.classList.add('hidden');
         }
-    } catch (e) {
-        console.warn('Could not load CEO overview metrics:', e);
     }
 }
 
@@ -3579,70 +3631,52 @@ async function testApiHealth() {
 // ============================================================
 
 let landingStatsLoaded = false;
-let statsData = {
-    students: 0,
-    buses: 0,
-    stations: 0,
-    punctuality: 100
-};
 
 /**
- * Fetch dynamic counts from backend and update counter targets.
- * Uses the public /health/db probe to know the backend is alive; detailed
- * totals come from CEO-only listing endpoints, so they are only fetched when
- * an authenticated session exists. Guests see the punctuality counter only.
+ * Fetch dynamic counts from backend and update counter targets with REAL
+ * values. Metric → documented endpoint mapping:
+ *   طالب وطالبة مسجلين      → GET /users?role=STUDENT            (envelope total)
+ *   حافلة سياحية نشطة       → GET /buses?status=ACTIVE           (envelope total)
+ *   محطة ونقطة تجمع         → GET /stations                      (envelope total)
+ *   نسبة الالتزام بالمواعيد → NO documented source: no statistics
+ *     endpoint exists in the API (all 92 endpoints reviewed), and trips carry
+ *     no punctuality data. The card shows "—" (insufficient data state)
+ *     instead of a fabricated 100%.
+ * Access rules (RBAC.md): /users and /buses are CEO+SUPERVISOR only;
+ * /stations is CEO+SUPERVISOR. Requests are issued per current role, and
+ * denied/failed requests render "—" — never a fake number.
  */
 async function fetchLandingStats() {
-    try {
-        let backendReachable = false;
-        try {
-            const baseUrl = window.CONFIG.getApiBaseUrl();
-            const rootUrl = baseUrl.replace(/\/api\/v1\/?$/, '');
-            const res = await fetch(`${rootUrl}/health/db`);
-            if (res.ok) {
-                const data = await res.json();
-                backendReachable = data?.database === 'connected';
-            }
-        } catch (healthErr) {
-            backendReachable = false;
-        }
+    const role = (currentUser?.role || '').toUpperCase();
+    const token = window.CONFIG.getAccessToken();
 
-        let students = 0, buses = 0, stations = 0;
-        if (backendReachable && window.CONFIG.getAccessToken()) {
+    try {
+        let students = null, buses = null, stations = null;
+        if (token && (role === 'CEO' || role === 'SUPERVISOR')) {
             const [usersRes, busesRes, stationsRes] = await Promise.allSettled([
                 window.usersApi.list({ role: 'STUDENT', page_size: 1 }),
-                window.busesApi.list({ page_size: 1 }),
+                window.busesApi.list({ status: 'ACTIVE', page_size: 1 }),
                 window.stationsApi.list({ page_size: 1 })
             ]);
 
-            if (usersRes.status === 'fulfilled' && usersRes.value && typeof usersRes.value.total === 'number') {
-                students = usersRes.value.total;
-            }
-            if (busesRes.status === 'fulfilled' && busesRes.value && typeof busesRes.value.total === 'number') {
-                buses = busesRes.value.total;
-            }
-            if (stationsRes.status === 'fulfilled' && stationsRes.value && typeof stationsRes.value.total === 'number') {
-                stations = stationsRes.value.total;
-            }
+            if (usersRes.status === 'fulfilled') students = paginatedTotal(usersRes.value);
+            if (busesRes.status === 'fulfilled') buses = paginatedTotal(busesRes.value);
+            if (stationsRes.status === 'fulfilled') stations = paginatedTotal(stationsRes.value);
         }
 
-        statsData.students = students;
-        statsData.buses = buses;
-        statsData.stations = stations;
-
-        const elStudents = document.getElementById('landing-stat-students');
-        const elBuses = document.getElementById('landing-stat-buses');
-        const elStations = document.getElementById('landing-stat-stations');
-        const elPunctuality = document.getElementById('landing-stat-punctuality');
-
-        if (elStudents) elStudents.setAttribute('data-target', statsData.students);
-        if (elBuses) elBuses.setAttribute('data-target', statsData.buses);
-        if (elStations) elStations.setAttribute('data-target', statsData.stations);
-        if (elPunctuality) elPunctuality.setAttribute('data-target', statsData.punctuality);
+        applyLandingStat(document.getElementById('landing-stat-students'), students);
+        applyLandingStat(document.getElementById('landing-stat-buses'), buses);
+        applyLandingStat(document.getElementById('landing-stat-stations'), stations);
+        // No documented punctuality metric exists — never fake 100%.
+        applyLandingStat(document.getElementById('landing-stat-punctuality'), null);
 
         landingStatsLoaded = true;
     } catch (e) {
         console.warn('[Landing Stats Fetch Error]:', e);
+        applyLandingStat(document.getElementById('landing-stat-students'), null);
+        applyLandingStat(document.getElementById('landing-stat-buses'), null);
+        applyLandingStat(document.getElementById('landing-stat-stations'), null);
+        applyLandingStat(document.getElementById('landing-stat-punctuality'), null);
     }
 }
 
@@ -3719,7 +3753,7 @@ function checkInitialVisibility() {
 function initIntersectionObservers() {
     if (!('IntersectionObserver' in window)) {
         document.querySelectorAll('.scroll-reveal').forEach(el => el.classList.add('is-visible'));
-        document.querySelectorAll('.stat-counter').forEach(el => {
+        document.querySelectorAll('.stat-counter[data-target]').forEach(el => {
             const target = el.getAttribute('data-target') || '0';
             const suffix = el.getAttribute('data-suffix') || '';
             el.innerText = `${target}${suffix}`;
@@ -3769,8 +3803,9 @@ function initIntersectionObservers() {
                         card.classList.add('is-visible');
                     });
 
-                    // Start counting numbers
-                    const counters = entry.target.querySelectorAll('.stat-counter');
+                    // Start counting numbers (only elements that hold a real
+                    // data-target — "—" placeholders have none and stay put).
+                    const counters = entry.target.querySelectorAll('.stat-counter[data-target]');
                     counters.forEach((counter, idx) => {
                         if (counter.dataset.animated !== 'true') {
                             setTimeout(() => {
