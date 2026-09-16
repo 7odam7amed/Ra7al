@@ -587,6 +587,19 @@ const tripsApi = {
     async listStops(tripId) {
         return ApiClient.request(`/trips/${tripId}/stops`);
     },
+    /**
+     * Fetch the pickup points of the trip's route (GET /trips/route-points/{route_id}).
+     * Used by the supervisor scan form: the scan's pickup_point_id must be one of
+     * the trip's stops and must match the student's selected point, so the
+     * selectable options come from the trip's own route — never a hardcoded list.
+     */
+    async listTripPickupPoints(tripId) {
+        const trip = await ApiClient.request(`/trips/${tripId}`);
+        const routeId = trip?.route_id ?? trip?.route?.id;
+        if (!routeId) return [];
+        const route = await ApiClient.request(`/trips/route-points/${routeId}`);
+        return Array.isArray(route?.pickup_points) ? route.pickup_points : [];
+    },
     // Replace the trip's ordered stop sequence: { stops: [...] }.
     async updateStops(tripId, stopsArray) {
         return ApiClient.request(`/trips/${tripId}/stops`, {

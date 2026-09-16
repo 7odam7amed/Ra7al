@@ -33,56 +33,9 @@ const MAX_PLAN_DURATION_DAYS = 730;
 // Weekly usage-day allowance bounds (days_per_week: 1–7 distinct usage days)
 const MAX_PLAN_DAYS_PER_WEEK = 7;
 
-// Rejected phone helpers (client-side convenience cache for re-registration blocking)
-function getRejectedPhoneSet() {
-    try {
-        const raw = localStorage.getItem('rahaal_rejected_phones');
-        return new Set(raw ? JSON.parse(raw) : []);
-    } catch (e) {
-        return new Set();
-    }
-}
-
-function addRejectedPhone(phone) {
-    if (!phone) return;
-    const set = getRejectedPhoneSet();
-    const cleanStr = String(phone).trim();
-    set.add(cleanStr);
-    const digitsOnly = cleanStr.replace(/\D/g, '');
-    if (digitsOnly) {
-        set.add(digitsOnly);
-        if (digitsOnly.startsWith('20')) set.add('0' + digitsOnly.slice(2));
-        if (digitsOnly.startsWith('0')) set.add('20' + digitsOnly.slice(1));
-    }
-    localStorage.setItem('rahaal_rejected_phones', JSON.stringify(Array.from(set)));
-}
-
-function removeRejectedPhone(phone) {
-    if (!phone) return;
-    const set = getRejectedPhoneSet();
-    const cleanStr = String(phone).trim();
-    set.delete(cleanStr);
-    const digitsOnly = cleanStr.replace(/\D/g, '');
-    if (digitsOnly) {
-        set.delete(digitsOnly);
-        set.delete('0' + digitsOnly.slice(2));
-        set.delete('20' + digitsOnly.slice(1));
-    }
-    localStorage.setItem('rahaal_rejected_phones', JSON.stringify(Array.from(set)));
-}
-
-function isPhoneRejected(phone) {
-    if (!phone) return false;
-    const set = getRejectedPhoneSet();
-    const cleanStr = String(phone).trim();
-    if (set.has(cleanStr)) return true;
-    const digitsOnly = cleanStr.replace(/\D/g, '');
-    if (!digitsOnly) return false;
-    if (set.has(digitsOnly)) return true;
-    if (digitsOnly.startsWith('20') && set.has('0' + digitsOnly.slice(2))) return true;
-    if (digitsOnly.startsWith('0') && set.has('20' + digitsOnly.slice(1))) return true;
-    return false;
-}
+// Rejected-phone helpers removed: duplicate-phone detection (409) is
+// authoritative server-side (AUTHENTICATION.md §5) and these helpers were
+// never invoked anywhere in the app.
 
 function initApp() {
     // 1. Instantly hide loading screen without delay
@@ -699,24 +652,6 @@ function renderNonActiveSubscriptionState(sub) {
     setElementText('student-qr-validity', (sub?.start_date && sub?.end_date) ? `الصلاحية: من ${sub.start_date} إلى ${sub.end_date}` : 'الصلاحية: -- إلى --');
 }
 
-// التسمية الديناميكية لتاريخ خدمة الغد (التواريخ دائماً كما يعيدها الخادم — لا حسابات محلية للسماحية).
-function getTomorrowLabel() {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-function getTomorrowDateISO() {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().slice(0, 10);
-}
-
-function setTomorrowLabels() {
-    const el = document.getElementById('student-tomorrow-label');
-    if (el) el.textContent = getTomorrowLabel();
-}
-
 async function loadStudentBoardingHistory(subId) {
     const tbody = document.getElementById('student-boarding-history-tbody');
     if (!tbody) return;
@@ -946,7 +881,7 @@ async function handleSelectTransportationSubmit(e) {
 async function loadMyReservations() {
     const tbody = document.getElementById('student-my-reservations-tbody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
 
     try {
         const res = await window.reservationsApi.listMy({ page_size: 50 });
@@ -991,7 +926,7 @@ async function loadMyReservations() {
             tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">لا توجد حجوزات مسجلة باسمك</td></tr>';
         }
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل قائمة الحجوزات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-rose-500 font-bold">تعذر تحميل قائمة الحجوزات</td></tr>';
     }
 }
 
@@ -1442,7 +1377,10 @@ async function loadSupervisorTripStudents() {
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition">
                         <td class="p-4 font-black text-slate-800 dark:text-white">${st.student_name}</td>
-                        <td class="p-4 font-semibold text-slate-500 dark:text-slate-400">${st.outbound_pickup || st.return_pickup || 'لم تُحدد نقطة'}</td>
+                        <td class="p-4 font-semibold text-slate-500 dark:text-slate-400">
+                            ${st.selected_point || 'لم تُحدد نقطة'}
+                            <span class="block text-[10px] text-slate-400 font-mono" dir="ltr">${st.service_date || ''}</span>
+                        </td>
                         <td class="p-4 font-mono font-bold text-slate-600 dark:text-slate-300">
                             <span dir="ltr">${st.subscription_status || '--'}</span>
                             ${st.payment_status ? `<span class="block text-[10px] font-bold ${st.payment_status === 'VERIFIED' ? 'text-emerald-500' : 'text-amber-500'}">${st.payment_status}</span>` : ''}
@@ -1526,14 +1464,25 @@ async function openSupervisorScanModal() {
     }
 
     const modal = document.getElementById('supervisor-scan-modal');
-    if (!modal) return;
+    if (!modal) return;        // Load the trip's pickup points for the scan form (via the trip's
+        // route — GET /trips/route-points/{route_id}); falls back to the
+        // trip's ordered stops so the options are always the trip's own
+        // points, never a hardcoded list.
+        try {
+            const pickupSelect = document.getElementById('scan-pickup-point-select');
+            pickupSelect.innerHTML = '<option value="">جاري التحميل...</option>';
 
-    // Load pickup points for this trip
-    try {
-        const pickupSelect = document.getElementById('scan-pickup-point-select');
-        pickupSelect.innerHTML = '<option value="">جاري التحميل...</option>';
-
-        const points = await window.tripsApi.listPickupPoints(currentSupervisorTripId);
+            let points = [];
+            try {
+                points = await window.tripsApi.listTripPickupPoints(currentSupervisorTripId);
+            } catch (routePointsErr) {
+                const stops = await window.tripsApi.listStops(currentSupervisorTripId);
+                points = (Array.isArray(stops) ? stops : []).map(s => ({
+                    id: s.pickup_point_id,
+                    name: s.point_name,
+                    sequence: s.stop_order
+                }));
+            }
         pickupSelect.innerHTML = '';
         if (Array.isArray(points) && points.length > 0) {
             points.forEach(p => {
@@ -3256,7 +3205,12 @@ async function loadCeoPayments() {
                         <td class="p-4 font-mono text-slate-400">${p.transaction_reference || 'لا يوجد'}</td>
                         <td class="p-4 text-center">${receiptCell}</td>
                         <td class="p-4">
-                            <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${p.status === 'VERIFIED' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-amber-500/15 text-amber-500'}">
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${
+                                p.status === 'VERIFIED' ? 'bg-emerald-500/15 text-emerald-500' :
+                                (p.status === 'REJECTED' || p.status === 'CANCELLED'
+                                    ? 'bg-rose-500/15 text-rose-500'
+                                    : 'bg-amber-500/15 text-amber-500')
+                            }">
                                 ${p.status}
                             </span>
                         </td>
