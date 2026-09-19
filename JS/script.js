@@ -305,7 +305,8 @@ function closeModal(modalId) {
  */
 async function handleLoginSubmit(e) {
     e.preventDefault();
-    const phone = document.getElementById('login-phone').value;
+    const rawPhone = document.getElementById('login-phone').value;
+    const phone = typeof normalizePhoneNumber === 'function' ? normalizePhoneNumber(rawPhone) : rawPhone;
     const pass = document.getElementById('login-pass').value;
     const submitBtn = document.getElementById('btn-login-submit');
 
@@ -381,7 +382,8 @@ async function handleRegisterSubmit(e) {
 
     const name = document.getElementById('reg-name').value;
     const gender = document.getElementById('reg-gender').value;
-    const phone = document.getElementById('reg-phone').value;
+    const rawPhone = document.getElementById('reg-phone').value;
+    const phone = typeof normalizePhoneNumber === 'function' ? normalizePhoneNumber(rawPhone) : rawPhone;
     const uniId = document.getElementById('reg-university-select').value;
     const faculty = document.getElementById('reg-faculty').value;
     const academicYear = document.getElementById('reg-academic-year').value;
@@ -1138,18 +1140,51 @@ function onBuySubPlanChange() {
     toggleRefFieldHint();
 }
 
-// إظهار/إخفاء شرط المرجع حسب طريقة الدفع: الرقمي يوجبه، النقد لا يطلبه.
+// إظهار/إخفاء شرط المرجع وصورة الإيصال حسب طريقة الدفع: الرقمي (فودافون كاش / انستاباي) يوجبهما، النقد لا يطلبهما.
 function toggleRefFieldHint() {
     const method = document.getElementById('buy-sub-pay-method')?.value;
     const label = document.getElementById('buy-sub-ref-label');
     const hint = document.getElementById('buy-sub-ref-hint');
     const refInput = document.getElementById('buy-sub-ref');
+    const receiptContainer = document.getElementById('buy-sub-receipt-container');
+    const receiptInput = document.getElementById('buy-sub-receipt-file');
+    const receiptBadge = document.getElementById('buy-sub-receipt-badge');
+    const receiptHint = document.getElementById('buy-sub-receipt-hint');
     const isDigital = method === 'VODAFONE_CASH' || method === 'INSTAPAY';
+
     if (label) label.textContent = isDigital ? 'رقم مرجع التحويل (مطلوب)' : 'رقم مرجع التحويل (اختياري للدفع النقدي)';
     if (hint) hint.classList.toggle('hidden', !isDigital);
     if (refInput) {
         if (isDigital) refInput.setAttribute('required', '');
         else refInput.removeAttribute('required');
+    }
+
+    if (receiptContainer) {
+        receiptContainer.classList.toggle('hidden', !isDigital);
+    }
+    if (receiptInput) {
+        if (isDigital) {
+            receiptInput.setAttribute('required', '');
+        } else {
+            receiptInput.removeAttribute('required');
+            receiptInput.value = '';
+        }
+    }
+    if (receiptBadge) {
+        if (method === 'VODAFONE_CASH') {
+            receiptBadge.textContent = '* مطلوب لفودافون كاش';
+        } else if (method === 'INSTAPAY') {
+            receiptBadge.textContent = '* مطلوب لانستاباي';
+        } else {
+            receiptBadge.textContent = '';
+        }
+    }
+    if (receiptHint) {
+        if (method === 'VODAFONE_CASH') {
+            receiptHint.textContent = 'صورة إيصال الدفع مطلوبة عند اختيار فودافون كاش (JPG / PNG / WEBP ≤ 5MB).';
+        } else if (method === 'INSTAPAY') {
+            receiptHint.textContent = 'صورة إيصال الدفع مطلوبة عند اختيار انستاباي (JPG / PNG / WEBP ≤ 5MB).';
+        }
     }
 }
 
@@ -1164,6 +1199,7 @@ async function openBuySubscriptionModal(selectedTripId = null, preselectedPlanId
     const planSelect = document.getElementById('buy-sub-plan-select');
     const startDate = document.getElementById('buy-sub-start-date');
     const refInput = document.getElementById('buy-sub-ref');
+    const receiptInput = document.getElementById('buy-sub-receipt-file');
     const payMethod = document.getElementById('buy-sub-pay-method');
 
     // تاريخ البدء الافتراضي: اليوم (الـ API يرفض أي تاريخ في الماضي).
@@ -1171,6 +1207,7 @@ async function openBuySubscriptionModal(selectedTripId = null, preselectedPlanId
         startDate.value = new Date().toISOString().slice(0, 10);
     }
     if (refInput) refInput.value = '';
+    if (receiptInput) receiptInput.value = '';
     if (payMethod) payMethod.value = 'CASH';
     toggleRefFieldHint();
 
@@ -1205,11 +1242,39 @@ async function handleBuySubscriptionSubmit(e) {
     const payMethod = document.getElementById('buy-sub-pay-method').value;
     const startDate = document.getElementById('buy-sub-start-date').value || null;
     const transRef = (document.getElementById('buy-sub-ref').value || '').trim() || null;
+    const isDigital = payMethod === 'VODAFONE_CASH' || payMethod === 'INSTAPAY';
+    const receiptInput = document.getElementById('buy-sub-receipt-file');
+    const receiptFile = (receiptInput && receiptInput.files && receiptInput.files.length > 0) ? receiptInput.files[0] : null;
 
-    if (!Number.isInteger(planId) || planId <= 0) { showToast('يرجى اختيار باقة الاشتراك.', 'error'); return; }
-    if ((payMethod === 'VODAFONE_CASH' || payMethod === 'INSTAPAY') && !transRef) {
+    if (!Number.isInteger(planId) || planId <= 0) {
+        showToast('يرجى اختيار باقة الاشتراك.', 'error');
+        return;
+    }
+
+    if (isDigital && !transRef) {
         showToast('الدفع الرقمي يتطلب رقم مرجع التحويل. إن لم يتوفر الآن اختر الدفع نقدًا.', 'error');
         return;
+    }
+
+    // صورة الإيصال إلزامية عند اختيار فودافون كاش أو انستاباي — منع إرسال الطلب بدونها
+    if (isDigital && !receiptFile) {
+        const methodArabic = payMethod === 'VODAFONE_CASH' ? 'فودافون كاش' : 'انستاباي';
+        showToast(`صورة إيصال الدفع مطلوبة عند اختيار ${methodArabic}.`, 'error');
+        return;
+    }
+
+    // التحقق من صحة ملف الإيصال وحجمه (≤ 5 ميجابايت) قبل إرسال الطلب
+    if (isDigital && receiptFile) {
+        const okExt = /\.(jpe?g|png|webp)$/i.test(receiptFile.name);
+        const okMime = ['image/jpeg', 'image/png', 'image/webp'].includes(receiptFile.type);
+        if (!okExt || !okMime) {
+            showToast('صيغة الإيصال غير مدعومة. المسموح: JPG / PNG / WEBP.', 'error');
+            return;
+        }
+        if (receiptFile.size > 5 * 1024 * 1024) {
+            showToast('حجم الإيصال يتجاوز الحد الأقصى 5 ميجابايت.', 'error');
+            return;
+        }
     }
 
     if (submitBtn) {
@@ -1221,7 +1286,6 @@ async function handleBuySubscriptionSubmit(e) {
     try {
         // SubscriptionCreateRequest (SUBSCRIPTIONS.md): plan_id + start_date +
         // payment_method (+ transaction_reference for digital methods).
-        // NO route/trip/pickup fields — transportation is selected per day later.
         const payload = {
             plan_id: planId,
             start_date: startDate,
@@ -1230,10 +1294,24 @@ async function handleBuySubscriptionSubmit(e) {
         };
 
         const res = await window.subscriptionsApi.create(payload);
-        const isPending = !res || res.status === 'PENDING';
-        showToast(isPending
-            ? 'تم إنشاء الاشتراك! الحالة: بانتظار تأكيد الدفع من الإدارة قبل ظهور كود QR.'
-            : 'تم إنشاء الاشتراك بنجاح!', 'success');
+        const paymentId = res?.payment_id ?? res?.payment?.id;
+
+        // إذا كانت طريقة الدفع رقمية، يتم رفع الإيصال فوراً إلى نقطة نهاية الإيصال
+        if (isDigital && receiptFile) {
+            if (paymentId) {
+                showToast('جاري رفع صورة إيصال التحويل...', 'info');
+                await window.paymentsApi.uploadReceipt(paymentId, receiptFile);
+                showToast('تم شراء الاشتراك ورفع إيصال الدفع بنجاح! بانتظار مراجعة وتأكيد الإدارة.', 'success');
+            } else {
+                showToast('تم إنشاء الاشتراك ولكن تعذر تحديد رقم الدفع لرفع الإيصال. يمكنك رفعه من تبويب المدفوعات.', 'warning');
+            }
+        } else {
+            const isPending = !res || res.status === 'PENDING';
+            showToast(isPending
+                ? 'تم إنشاء الاشتراك! الحالة: بانتظار تأكيد الدفع من الإدارة قبل ظهور كود QR.'
+                : 'تم إنشاء الاشتراك بنجاح!', 'success');
+        }
+
         closeModal('buy-subscription-modal');
         loadStudentDashboard();
     } catch (err) {
@@ -1943,8 +2021,8 @@ function renderCeoUsersTable(items) {
                             ${isActive ? '<i class="fa-solid fa-circle-check"></i> معتمد ونشط' : (isPending ? '<i class="fa-solid fa-hourglass-half"></i> بانتظار الاعتماد (Pending)' : '<i class="fa-solid fa-ban"></i> غير نشط (Inactive / معطل)')}
                         </span>
                     </td>
-                    <td class="p-4 text-center">
-                        <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                    <td class="p-4 text-center whitespace-nowrap">
+                        <div class="flex items-center justify-center gap-1.5 flex-nowrap">
                             <button onclick="viewCeoUserDetails(${u.id})" title="عرض تفاصيل الحساب والكارنيه" class="bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg fast-transition border-0 cursor-pointer flex items-center gap-1">
                                 <i class="fa-solid fa-id-card"></i> الكارنيه / الملف
                             </button>
@@ -2171,7 +2249,8 @@ function openAddSupervisorModal() {
 async function handleCreateSupervisorSubmit(e) {
     e.preventDefault();
     const name = document.getElementById('new-sup-name').value;
-    const phone = document.getElementById('new-sup-phone').value;
+    const rawPhone = document.getElementById('new-sup-phone').value;
+    const phone = typeof normalizePhoneNumber === 'function' ? normalizePhoneNumber(rawPhone) : rawPhone;
     const pass = document.getElementById('new-sup-pass').value;
     const gender = document.getElementById('new-sup-gender').value;
 

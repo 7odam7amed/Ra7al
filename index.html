@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl" class="dark">
 <head>
     <meta charset="UTF-8">
@@ -269,8 +269,8 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-400 mb-1.5">رقم الهاتف (يجب</label>
-                            <input type="tel" id="reg-phone" required value="+20" placeholder="01012345678" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary font-mono text-left">
+                            <label class="block text-xs font-bold text-slate-400 mb-1.5">رقم الهاتف</label>
+                            <input type="tel" id="reg-phone" required placeholder="01012345678" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary font-mono text-left">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-400 mb-1.5">الجامعة</label>
@@ -843,22 +843,24 @@
                         </div>
                     </div>
                     <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
-                        <table class="w-full text-right text-xs">
-                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
-                                <tr>
-                                    <th class="p-4">الاسم وبيانات الطالب</th>
-                                    <th class="p-4">رقم الهاتف</th>
-                                    <th class="p-4">الرتبة</th>
-                                    <th class="p-4">الجامعة المقيد بها</th>
-                                    <th class="p-4">الكلية / الفرقة</th>
-                                    <th class="p-4">حالة الحساب</th>
-                                    <th class="p-4 text-center">إجراءات الاعتماد (CEO)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ceo-users-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="7" class="p-6 text-center text-slate-400">جاري تحميل المستخدمين...</td></tr>
-                            </tbody>
-                        </table>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-xs min-w-[720px]">
+                                <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                    <tr>
+                                        <th class="p-4">الاسم وبيانات الطالب</th>
+                                        <th class="p-4">رقم الهاتف</th>
+                                        <th class="p-4">الرتبة</th>
+                                        <th class="p-4">الجامعة المقيد بها</th>
+                                        <th class="p-4">الكلية / الفرقة</th>
+                                        <th class="p-4">حالة الحساب</th>
+                                        <th class="p-4 text-center">إجراءات الاعتماد (CEO)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ceo-users-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                    <tr><td colspan="7" class="p-6 text-center text-slate-400">جاري تحميل المستخدمين...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -869,20 +871,22 @@
                         <button onclick="openAddSupervisorModal()" class="btn-gradient text-white px-4 py-2 text-xs flex items-center gap-1.5 rounded-xl hover:scale-105 active:scale-95 fast-transition shadow-sm font-bold border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> إضافة مشرف جديد</button>
                     </div>
                     <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
-                        <table class="w-full text-right text-xs">
-                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
-                                <tr>
-                                    <th class="p-4">اسم المشرف</th>
-                                    <th class="p-4">رقم الهاتف</th>
-                                    <th class="p-4">الجنس</th>
-                                    <th class="p-4">الحالة</th>
-                                    <th class="p-4 text-center">التحكم</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ceo-supervisors-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="5" class="p-6 text-center text-slate-400">جاري تحميل المشرفين...</td></tr>
-                            </tbody>
-                        </table>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-xs min-w-[550px]">
+                                <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                    <tr>
+                                        <th class="p-4">اسم المشرف</th>
+                                        <th class="p-4">رقم الهاتف</th>
+                                        <th class="p-4">الجنس</th>
+                                        <th class="p-4">الحالة</th>
+                                        <th class="p-4 text-center">التحكم</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ceo-supervisors-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                    <tr><td colspan="5" class="p-6 text-center text-slate-400">جاري تحميل المشرفين...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -893,19 +897,21 @@
                         <button onclick="openAddUniversityModal()" class="btn-gradient text-white px-4 py-2 text-xs flex items-center gap-1.5 rounded-xl hover:scale-105 active:scale-95 fast-transition shadow-sm font-bold border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> إضافة جامعة جديدة</button>
                     </div>
                     <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
-                        <table class="w-full text-right text-xs">
-                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
-                                <tr>
-                                    <th class="p-4">اسم الجامعة</th>
-                                    <th class="p-4">الحالة التشغيلية</th>
-                                    <th class="p-4">تاريخ الإضافة</th>
-                                    <th class="p-4 text-center">العمليات</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ceo-universities-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="4" class="p-6 text-center text-slate-400">جاري تحميل الجامعات...</td></tr>
-                            </tbody>
-                        </table>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-xs min-w-[500px]">
+                                <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                    <tr>
+                                        <th class="p-4">اسم الجامعة</th>
+                                        <th class="p-4">الحالة التشغيلية</th>
+                                        <th class="p-4">تاريخ الإضافة</th>
+                                        <th class="p-4 text-center">العمليات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ceo-universities-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                    <tr><td colspan="4" class="p-6 text-center text-slate-400">جاري تحميل الجامعات...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -927,20 +933,22 @@
                         <button onclick="openAddStationModal()" class="btn-gradient text-white px-4 py-2 text-xs flex items-center gap-1.5 rounded-xl hover:scale-105 active:scale-95 fast-transition shadow-sm font-bold border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> إضافة محطة جديدة</button>
                     </div>
                     <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
-                        <table class="w-full text-right text-xs">
-                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
-                                <tr>
-                                    <th class="p-4">اسم المحطة</th>
-                                    <th class="p-4">كود المحطة</th>
-                                    <th class="p-4">العنوان</th>
-                                    <th class="p-4">الحالة</th>
-                                    <th class="p-4 text-center">العمليات</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ceo-stations-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="5" class="p-6 text-center text-slate-400">جاري تحميل المحطات...</td></tr>
-                            </tbody>
-                        </table>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-xs min-w-[550px]">
+                                <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                    <tr>
+                                        <th class="p-4">اسم المحطة</th>
+                                        <th class="p-4">كود المحطة</th>
+                                        <th class="p-4">العنوان</th>
+                                        <th class="p-4">الحالة</th>
+                                        <th class="p-4 text-center">العمليات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ceo-stations-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                    <tr><td colspan="5" class="p-6 text-center text-slate-400">جاري تحميل المحطات...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -951,19 +959,21 @@
                         <button onclick="openAddRouteModal()" class="btn-gradient text-white px-4 py-2 text-xs flex items-center gap-1.5 rounded-xl hover:scale-105 active:scale-95 fast-transition shadow-sm font-bold border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> إنشاء خط سير جديد</button>
                     </div>
                     <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
-                        <table class="w-full text-right text-xs">
-                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
-                                <tr>
-                                    <th class="p-4">اسم الخط</th>
-                                    <th class="p-4">نقاط الركوب المسجلة</th>
-                                    <th class="p-4">الحالة</th>
-                                    <th class="p-4 text-center">العمليات</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ceo-routes-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="4" class="p-6 text-center text-slate-400">جاري تحميل خطوط السير...</td></tr>
-                            </tbody>
-                        </table>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-xs min-w-[500px]">
+                                <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                    <tr>
+                                        <th class="p-4">اسم الخط</th>
+                                        <th class="p-4">نقاط الركوب المسجلة</th>
+                                        <th class="p-4">الحالة</th>
+                                        <th class="p-4 text-center">العمليات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ceo-routes-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                    <tr><td colspan="4" class="p-6 text-center text-slate-400">جاري تحميل خطوط السير...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -974,23 +984,25 @@
                         <button onclick="openAddTripModal()" class="btn-gradient text-white px-4 py-2 text-xs flex items-center gap-1.5 rounded-xl hover:scale-105 active:scale-95 fast-transition shadow-sm font-bold border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> جدولة رحلة جديدة</button>
                     </div>
                     <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
-                        <table class="w-full text-right text-xs">
-                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
-                                <tr>
-                                    <th class="p-4">الخط</th>
-                                    <th class="p-4">الاتجاه</th>
-                                    <th class="p-4">الحافلة</th>
-                                    <th class="p-4">المشرف</th>
-                                    <th class="p-4">المغادرة ← الوصول</th>
-                                    <th class="p-4">السعة</th>
-                                    <th class="p-4">الحالة</th>
-                                    <th class="p-4 text-center">العمليات</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ceo-trips-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="8" class="p-6 text-center text-slate-400">جاري تحميل جدول الرحلات...</td></tr>
-                            </tbody>
-                        </table>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-xs min-w-[750px]">
+                                <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                    <tr>
+                                        <th class="p-4">الخط</th>
+                                        <th class="p-4">الاتجاه</th>
+                                        <th class="p-4">الحافلة</th>
+                                        <th class="p-4">المشرف</th>
+                                        <th class="p-4">المغادرة ← الوصول</th>
+                                        <th class="p-4">السعة</th>
+                                        <th class="p-4">الحالة</th>
+                                        <th class="p-4 text-center">العمليات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ceo-trips-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                    <tr><td colspan="8" class="p-6 text-center text-slate-400">جاري تحميل جدول الرحلات...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -1001,23 +1013,25 @@
                         <button onclick="loadCeoPayments()" class="btn-gradient text-white px-3 py-2 text-xs rounded-xl font-bold border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
                     </div>
                     <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
-                        <table class="w-full text-right text-xs">
-                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
-                                <tr>
-                                    <th class="p-4">رقم الدفع</th>
-                                    <th class="p-4">الطالب</th>
-                                    <th class="p-4">المبلغ</th>
-                                    <th class="p-4">الطريقة</th>
-                                    <th class="p-4">رقم التحويل</th>
-                                    <th class="p-4">الإيصال</th>
-                                    <th class="p-4">الحالة</th>
-                                    <th class="p-4 text-center">الإجراء المالي</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ceo-payments-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="7" class="p-6 text-center text-slate-400">جاري تحميل المدفوعات...</td></tr>
-                            </tbody>
-                        </table>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-xs min-w-[750px]">
+                                <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                    <tr>
+                                        <th class="p-4">رقم الدفع</th>
+                                        <th class="p-4">الطالب</th>
+                                        <th class="p-4">المبلغ</th>
+                                        <th class="p-4">الطريقة</th>
+                                        <th class="p-4">رقم التحويل</th>
+                                        <th class="p-4">الإيصال</th>
+                                        <th class="p-4">الحالة</th>
+                                        <th class="p-4 text-center">الإجراء المالي</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ceo-payments-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                    <tr><td colspan="7" class="p-6 text-center text-slate-400">جاري تحميل المدفوعات...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -1028,22 +1042,24 @@
                         <button onclick="openAddPlanModal()" class="btn-gradient text-white px-4 py-2 text-xs flex items-center gap-1.5 rounded-xl hover:scale-105 active:scale-95 fast-transition shadow-sm font-bold border-0 cursor-pointer"><i class="fa-solid fa-plus"></i> إضافة باقة جديدة</button>
                     </div>
                     <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
-                        <table class="w-full text-right text-xs">
-                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
-                                <tr>
-                                    <th class="p-4">اسم الباقة</th>
-                                    <th class="p-4">النوع</th>
-                                    <th class="p-4">المدة (بالأيام)</th>
-                                    <th class="p-4">أيام النقل أسبوعياً</th>
-                                    <th class="p-4">السعر</th>
-                                    <th class="p-4">الحالة</th>
-                                    <th class="p-4 text-center">العمليات</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ceo-plans-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="7" class="p-6 text-center text-slate-400">جاري تحميل باقات الاشتراكات...</td></tr>
-                            </tbody>
-                        </table>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-xs min-w-[650px]">
+                                <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                    <tr>
+                                        <th class="p-4">اسم الباقة</th>
+                                        <th class="p-4">النوع</th>
+                                        <th class="p-4">المدة (بالأيام)</th>
+                                        <th class="p-4">أيام النقل أسبوعياً</th>
+                                        <th class="p-4">السعر</th>
+                                        <th class="p-4">الحالة</th>
+                                        <th class="p-4 text-center">العمليات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ceo-plans-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                    <tr><td colspan="7" class="p-6 text-center text-slate-400">جاري تحميل باقات الاشتراكات...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -1054,21 +1070,23 @@
                         <button onclick="loadCeoBoardingRecords()" class="btn-gradient text-white px-3 py-2 text-xs rounded-xl font-bold border-0 cursor-pointer"><i class="fa-solid fa-rotate-right"></i> تحديث</button>
                     </div>
                     <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
-                        <table class="w-full text-right text-xs">
-                            <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
-                                <tr>
-                                    <th class="p-4">الطالب</th>
-                                    <th class="p-4">الرحلة</th>
-                                    <th class="p-4">المشرف</th>
-                                    <th class="p-4">الاتجاه</th>
-                                    <th class="p-4">نقطة الركوب</th>
-                                    <th class="p-4">توقيت الصعود</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ceo-boarding-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
-                                <tr><td colspan="6" class="p-6 text-center text-slate-400">جاري تحميل سجل الصعود العام...</td></tr>
-                            </tbody>
-                        </table>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-xs min-w-[600px]">
+                                <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500">
+                                    <tr>
+                                        <th class="p-4">الطالب</th>
+                                        <th class="p-4">الرحلة</th>
+                                        <th class="p-4">المشرف</th>
+                                        <th class="p-4">الاتجاه</th>
+                                        <th class="p-4">نقطة الركوب</th>
+                                        <th class="p-4">توقيت الصعود</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ceo-boarding-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                    <tr><td colspan="6" class="p-6 text-center text-slate-400">جاري تحميل سجل الصعود العام...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -1496,6 +1514,15 @@
                     <label class="block text-[10px] text-slate-400 font-bold mb-1" id="buy-sub-ref-label">رقم مرجع التحويل (مطلوب للدفع الرقمي)</label>
                     <input type="text" id="buy-sub-ref" placeholder="مثال: VC-123456789" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
                     <p id="buy-sub-ref-hint" class="text-[10px] text-slate-400 mt-1 hidden">يتطلب الدفع الرقمي (فودافون كاش / انستاباي) إدخال رقم مرجع العملية.</p>
+                </div>
+                <!-- Payment Receipt Upload (Required for Vodafone Cash & InstaPay) -->
+                <div id="buy-sub-receipt-container" class="hidden space-y-1">
+                    <label class="block text-[10px] font-bold text-slate-400 flex items-center justify-between" id="buy-sub-receipt-label">
+                        <span>صورة إيصال التحويل</span>
+                        <span class="text-[10px] text-rose-500 font-bold" id="buy-sub-receipt-badge">* مطلوب</span>
+                    </label>
+                    <input type="file" id="buy-sub-receipt-file" accept="image/jpeg,image/png,image/webp" onchange="handleReceiptFileSelect(this)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0B5DAA] file:text-white hover:file:bg-[#6AB9FF] file:cursor-pointer">
+                    <p class="text-[10px] text-slate-400 mt-0.5" id="buy-sub-receipt-hint">صورة إيصال التحويل مطلوبة (JPG / PNG / WEBP — بحد أقصى 5 ميجابايت).</p>
                 </div>
                 <div class="flex gap-2 pt-2">
                     <button type="submit" class="flex-1 btn-gradient py-2.5 text-xs font-bold text-white rounded-xl hover:scale-105 fast-transition border-0 cursor-pointer">تأكيد وشراء الاشتراك</button>

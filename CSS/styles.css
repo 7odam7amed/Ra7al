@@ -276,3 +276,15 @@ body.ceo-drawer-open {
     overflow: hidden;
 }
 
+/* Responsive tables: smooth horizontal scrolling on touch devices */
+.overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+    th, td {
+        padding: 0.75rem 1rem !important;
+    }
+}
+
+

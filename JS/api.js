@@ -13,7 +13,85 @@ class ApiError extends Error {
     }
 }
 
+/**
+ * Centralized Egyptian Phone Normalizer
+ * Normalizes common Egyptian phone numbers to E.164 (+20XXXXXXXXXX) format.
+ * Prevents double-prefixing (+2020..., +20+20...).
+ *
+ * Supported inputs:
+ *  - 01012345678      -> +201012345678
+ *  - 201012345678     -> +201012345678
+ *  - +201012345678    -> +201012345678
+ *  - +20 101 234 5678 -> +201012345678
+ *  - 010 1234 5678    -> +201012345678
+ *  - 00201012345678   -> +201012345678
+ *  - 1012345678       -> +201012345678
+ */
+function normalizePhoneNumber(phone) {
+    if (!phone || typeof phone !== 'string') return phone;
+
+    // Convert Arabic-Indic numerals to Latin digits
+    const arabicIndicDigits = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+    let str = phone.replace(/[٠-٩]/g, d => arabicIndicDigits.indexOf(d));
+
+    // Strip whitespace, dashes, parentheses, dots
+    str = str.replace(/[\s\-\(\)\.]/g, '').trim();
+
+    // Prevent duplicate prefixes (e.g. +20+20..., +20201..., 20201...)
+    while (str.startsWith('+20+20')) str = '+20' + str.slice(6);
+    while (str.startsWith('+20201')) str = '+20' + str.slice(5);
+    while (str.startsWith('20201')) str = '20' + str.slice(4);
+
+    // If starts with 0020..., convert 00 to +
+    if (str.startsWith('0020')) str = '+' + str.slice(2);
+
+    // If starts with +20:
+    if (str.startsWith('+20')) {
+        const after20 = str.slice(3);
+        // If user typed +20010..., remove the extraneous 0 after +20
+        if (after20.startsWith('0') && after20.length === 11) {
+            return '+20' + after20.slice(1);
+        }
+        return str;
+    }
+
+    // If starts with 20 (without +):
+    if (str.startsWith('20')) {
+        const after20 = str.slice(2);
+        // If user typed 20010... (20 + 010...), remove the extraneous 0
+        if (after20.startsWith('0') && after20.length === 11) {
+            return '+20' + after20.slice(1);
+        }
+        // If 20 followed by Egyptian mobile prefix (10, 11, 12, 15) and 8 digits
+        if (/^1[0125][0-9]{8}$/.test(after20)) {
+            return '+20' + after20;
+        }
+        // If 20 + other digit sequence
+        if (/^[0-9]{9,13}$/.test(after20)) {
+            return '+' + str;
+        }
+    }
+
+    // If starts with 01 (standard local 11 digits: 010, 011, 012, 015)
+    if (/^01[0125][0-9]{8}$/.test(str)) {
+        return '+20' + str.slice(1);
+    }
+
+    // If 10 digits starting with 10, 11, 12, 15 (omitted leading 0)
+    if (/^1[0125][0-9]{8}$/.test(str)) {
+        return '+20' + str;
+    }
+
+    // Any other number starting with +: keep as is
+    if (str.startsWith('+')) return str;
+
+    // Return string as-is for malformed inputs to be handled by backend/validation
+    return str;
+}
+
 const ApiClient = {
+    normalizePhoneNumber,
+
     /**
      * Core Request Engine
      */
@@ -268,9 +346,13 @@ const authApi = {
      * Register a new student account
      */
     async register(data) {
+        const payload = data ? { ...data } : {};
+        if (payload.phone_number) {
+            payload.phone_number = normalizePhoneNumber(payload.phone_number);
+        }
         return ApiClient.request('/auth/register', {
             method: 'POST',
-            body: data
+            body: payload
         });
     },
 
@@ -280,7 +362,8 @@ const authApi = {
      */
     async login(username, password) {
         const params = new URLSearchParams();
-        params.append('username', username.trim());
+        const normalizedPhone = normalizePhoneNumber(username);
+        params.append('username', normalizedPhone);
         params.append('password', password);
         params.append('grant_type', 'password');
 
@@ -311,9 +394,13 @@ const usersApi = {
         return ApiClient.request('/users/pending', { params });
     },
     async createSupervisor(data) {
+        const payload = data ? { ...data } : {};
+        if (payload.phone_number) {
+            payload.phone_number = normalizePhoneNumber(payload.phone_number);
+        }
         return ApiClient.request('/users/supervisors', {
             method: 'POST',
-            body: data
+            body: payload
         });
     },
     async getById(userId) {
@@ -812,7 +899,8 @@ const boardingApi = {
     }
 };
 
-// Expose all domain APIs to the global window
+// Expose all domain APIs and normalizers to the global window
+window.normalizePhoneNumber = normalizePhoneNumber;
 window.ApiClient = ApiClient;
 window.authApi = authApi;
 window.usersApi = usersApi;
